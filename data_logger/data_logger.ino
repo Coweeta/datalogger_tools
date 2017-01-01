@@ -10,6 +10,32 @@
 #include "str_util.h"
 #include "logger_core.h"
 
+
+void print_root_directory() {
+  File dir = SD.open("/");
+  dir.rewindDirectory();
+  while (true) {
+
+    File entry =  dir.openNextFile();
+    if (!entry) {
+      // no more files
+      break;
+    }
+    Serial.print(entry.name());
+    if (entry.isDirectory()) {
+      Serial.println("/");
+    } else {
+      // files have sizes, directories do not
+      Serial.print("\t\t");
+      Serial.println(entry.size(), DEC);
+    }
+    entry.close();
+  }
+  dir.close();
+}
+
+
+
 static RTC_DS1307 rtc; // define the Real Time Clock object
 
 
@@ -48,34 +74,43 @@ void new_log_row(const DateTime &now) {
 
 
 
-File set_log_file(const DateTime *date_time) {
+int get_next_file_number(void) {
 
-  File log_file;
-  // create a new file
   char filename[] = "LOGGER00.CSV";
   for (uint8_t i = 0; i < 100; i++) {
     filename[6] = i/10 + '0';
     filename[7] = i%10 + '0';
     if (!SD.exists(filename)) {
-      // only open a new file if it doesn't exist
-      File log_file = SD.open(filename, FILE_WRITE);
-      if (!log_file) {
-        die("Couldn't create file.");
-      } 
-      Serial.print("Logging to ");
-      Serial.println(filename);
-      return log_file;
-      
+      return i;
     }
+     
   }
   die("Ran out of filenames.");
     
 }
 
 
+File set_log_file(int file_number, int mode) {
+  char filename[] = "LOGGER00.CSV";
+  filename[6] = file_number / 10 + '0';
+  filename[7] = file_number % 10 + '0';
+  File log_file = SD.open(filename, mode);
+  if (!log_file) {
+    die("Couldn't create file.");
+  } 
+  return log_file;
+  
+}
+
+
 static File log_file;
+static int file_number = 0;
+
 
 void setup() {
+  pinMode(red_led_pin, OUTPUT);
+  pinMode(green_led_pin, OUTPUT);
+  
   Serial.begin(115200);
   Serial.println("Coweeta Hydrologic Lab Data Logger");
 
@@ -86,28 +121,16 @@ void setup() {
     die("RTC failed");
   }
 
-  const DateTime now = rtc.now();
-
-  new_log_row(now);
-  write_char(',');
-  write_uint(123);
-  write_char(',');
-  write_sint(-123);
-   
-  Serial.println(get_row());
-  
-
   pinMode(logger_cs_pin, OUTPUT);
-//  if (!SD.begin(logger_cs_pin)) {
   if (!SD.begin(logger_cs_pin)) {
     die("Data logger card failed, or not present.");
   }  
-  
-  const DateTime time_stamp = rtc.now();
 
-  log_file = set_log_file(&time_stamp);
+  file_number = get_next_file_number();
+  log_file = set_log_file(file_number, FILE_WRITE);
 
   logger_setup();
+  
 }
 
 
@@ -127,23 +150,23 @@ int get_int(int min, int max) {
 
 void loop() {
   static uint32_t last_time = 0;
-  static int xxx;
   static bool log_to_serial = false;
   static bool log_to_file = true;
   
   delay(100);
 
+  digitalWrite(green_led_pin, LOW);
   if (Serial.available()) {
     const int command = Serial.read();
     
     switch(command) {
-      case 'g':
+      case 'G':
       {
         // get file
         const int file_num = get_int(0, 99);
-        log_file.close();
+        // log_file.close();
         
-        File dataFile = SD.open("datalog.txt");
+        File dataFile = set_log_file(file_num, FILE_READ);
       
         // if the file is available, write to it:
         if (dataFile) {
@@ -151,6 +174,7 @@ void loop() {
             Serial.write(dataFile.read());
           }
           dataFile.close();
+          Serial.println("");
         }
         // if the file isn't open, pop up an error:
         else {
@@ -160,9 +184,21 @@ void loop() {
         }
         // dump
         break;
-        
+
+      case 'R':
+        // remove
+        {
+          const int file_num = get_int(0, 99);
+          char fn[] = "LOGGER00.CSV";
+          fn[6] = file_num / 10 + '0';
+          fn[7] = file_num % 10 + '0';
+          SD.remove(fn);
+        }
+        break;
+        // log_file.close();
+          
       case 't':
-        Serial.println(xxx, DEC);
+        //Serial.println(xxx, DEC);
         // set time
         break;
 
@@ -170,9 +206,10 @@ void loop() {
         // show time
         break;
 
-      case 'l':
-      // list files
-      break;
+      case 'L':
+        // list files
+        print_root_directory();
+        break;
 
       case 'S':
         log_to_serial = get_int(0, 1);
@@ -197,7 +234,7 @@ void loop() {
   if (current_time % log_interval != 0) {
     return;
   }
-
+  digitalWrite(green_led_pin, HIGH);
   new_log_row(time_stamp);
 
   logger_loop(time_stamp);
@@ -211,6 +248,7 @@ void loop() {
 
   if (log_to_file && log_file) {
     log_file.println(line);
+    log_file.flush();
   }
   
 
