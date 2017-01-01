@@ -8,7 +8,7 @@
 #include <Wire.h>
 #include "RTClib.h"
 #include "str_util.h"
-
+#include "logger_core.h"
 
 static RTC_DS1307 rtc; // define the Real Time Clock object
 
@@ -47,13 +47,6 @@ void new_log_row(const DateTime &now) {
 }
 
 
-static void logger(const DateTime &date_time) {
-  new_log_row(date_time);
-  const int value = analogRead(1);
-  write_char(',');
-  write_sint(value);
-}
-
 
 File set_log_file(const DateTime *date_time) {
 
@@ -80,7 +73,7 @@ File set_log_file(const DateTime *date_time) {
 }
 
 
-File log_file;
+static File log_file;
 
 void setup() {
   Serial.begin(115200);
@@ -113,11 +106,21 @@ void setup() {
   const DateTime time_stamp = rtc.now();
 
   log_file = set_log_file(&time_stamp);
+
+  logger_setup();
 }
 
 
 
-
+int get_int(int min, int max) {
+  while (true) {
+    const int val = Serial.parseInt();
+    if ((val >= min) && (val <= max)) {
+      return val;
+    }
+    Serial.print("bad; retry: ");
+  }
+}
 
 
 
@@ -125,6 +128,9 @@ void setup() {
 void loop() {
   static uint32_t last_time = 0;
   static int xxx;
+  static bool log_to_serial = false;
+  static bool log_to_file = true;
+  
   delay(100);
 
   if (Serial.available()) {
@@ -134,7 +140,7 @@ void loop() {
       case 'g':
       {
         // get file
-        const int file_num = Serial.parseInt();
+        const int file_num = get_int(0, 99);
         log_file.close();
         
         File dataFile = SD.open("datalog.txt");
@@ -167,6 +173,16 @@ void loop() {
       case 'l':
       // list files
       break;
+
+      case 'S':
+        log_to_serial = get_int(0, 1);
+        break;
+        
+      case 'F':
+        log_to_file = get_int(0, 1);
+        break;
+        
+      
     }
     
   }
@@ -182,8 +198,21 @@ void loop() {
     return;
   }
 
+  new_log_row(time_stamp);
+
+  logger_loop(time_stamp);
+
+  write_char(0);
   
-  // log_time_stamp(&log_file, &time_stamp);
+  const char *line = get_row();
+  if (log_to_serial) {
+    Serial.println(line);
+  }
+
+  if (log_to_file && log_file) {
+    log_file.println(line);
+  }
+  
 
 }  
 
