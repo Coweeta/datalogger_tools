@@ -9,3 +9,5 @@ const char *get_row(void);
 void new_row(void);
 
 void write_char(char ch);
+
+bool empty(void);

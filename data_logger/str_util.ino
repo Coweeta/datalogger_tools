@@ -58,4 +58,7 @@ void write_char(char ch) {
 }
 
 
+bool empty(void) {
+  return cursor == line;
+}
 
