@@ -1,5 +1,7 @@
+import tkinter as tk
+import tkinter.ttk as ttk
 
-class VerticalScrolledFrame(Frame):
+class VerticalScrolledFrame(tk.Frame):
     """A pure Tkinter scrollable frame that actually works!
 
     * Use the 'interior' attribute to place widgets inside the scrollable frame
@@ -10,14 +12,14 @@ class VerticalScrolledFrame(Frame):
 
     """
     def __init__(self, parent, *args, **kw):
-        Frame.__init__(self, parent, *args, **kw)
+        tk.Frame.__init__(self, parent, *args, **kw)
 
         # create a canvas object and a vertical scrollbar for scrolling it
-        vscrollbar = Scrollbar(self, orient=VERTICAL)
-        vscrollbar.pack(fill=Y, side=RIGHT, expand=FALSE)
-        canvas = Canvas(self, bd=0, highlightthickness=0,
+        vscrollbar = tk.Scrollbar(self, orient=tk.VERTICAL)
+        vscrollbar.pack(fill=tk.Y, side=tk.RIGHT, expand=tk.FALSE)
+        canvas = tk.Canvas(self, bd=0, highlightthickness=0,
                         yscrollcommand=vscrollbar.set)
-        canvas.pack(side=LEFT, fill=BOTH, expand=TRUE)
+        canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=tk.TRUE)
         vscrollbar.config(command=canvas.yview)
 
         # reset the view
@@ -25,9 +27,9 @@ class VerticalScrolledFrame(Frame):
         canvas.yview_moveto(0)
 
         # create a frame inside the canvas which will be scrolled with it
-        self.interior = interior = Frame(canvas)
+        self.interior = interior = tk.Frame(canvas)
         interior_id = canvas.create_window(0, 0, window=interior,
-                                           anchor=NW)
+                                           anchor=tk.NW)
 
         # track changes to the canvas and frame width and sync them,
         # also updating the scrollbar
@@ -46,3 +48,33 @@ class VerticalScrolledFrame(Frame):
                 canvas.itemconfigure(interior_id, width=canvas.winfo_width())
         canvas.bind('<Configure>', _configure_canvas)
 
+
+
+if __name__ == "__main__":
+
+    class SampleApp(tk.Tk):
+        def __init__(self, *args, **kwargs):
+            root = tk.Tk.__init__(self, *args, **kwargs)
+
+
+            self.frame = VerticalScrolledFrame(root)
+            self.button = tk.Button(text="Hello", command=self.bob)
+            self.frame.pack(expand=True, fill='both')
+            self.label = tk.Label(text="Shrink the window to activate the scrollbar.")
+            self.label.pack()
+            self.button.pack()
+            buttons = []
+            for i in range(10):
+                f = tk.Frame(self.frame.interior)
+                tk.Button(f, text="Left " + str(i)).pack(side='left',expand=True, fill='x')
+                tk.Button(f, text="Button " + str(i)).pack(side='left',expand=True, fill='x')
+                tk.Button(f, text="Right " + str(i)).pack(side='left',expand=True, fill='x')
+                buttons.append(f)
+                buttons[-1].pack(expand=True, fill='x')
+
+        def bob(self):
+            tk.Button(self.frame.interior, text="Button").pack()
+
+
+    app = SampleApp()
+    app.mainloop()
