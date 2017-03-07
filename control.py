@@ -7,12 +7,12 @@ class DataLoggerInterface:
     """
 
 
-    def __init__(self, deviceName, debug=False):
+    def __init__(self, device_name, debug=False):
         """Open interface to Gate-Sync box.
 
         deviceName would be something like "/dev/ttyUSB0"
         """
-        self.ser = serial.Serial(deviceName, 115200, xonxoff=1, rtscts=0, timeout=0.1)
+        self.ser = serial.Serial(device_name, 115200, xonxoff=1, rtscts=0, timeout=0.1)
         self.debug = debug
 
 
@@ -86,6 +86,18 @@ class DataLoggerInterface:
         if len(lines) != 1:
             raise Exception("bad num lines", lines)
         return int(lines[0])
+
+
+    def list_files(self):
+        lines = self._write_and_read("L")
+        file_list = []
+        for line in lines:
+            if "\t" in line:
+                parts = line.split("\t")
+                file_list.append((parts[0], int(parts[1])))
+            else:
+                file_list.append((line, None))
+        return file_list
 
 
     def close(self):
