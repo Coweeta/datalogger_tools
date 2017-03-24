@@ -99,6 +99,10 @@ class DataLoggerInterface:
                 file_list.append((line, None))
         return file_list
 
+    def trigger_event(self, event_number):
+        event_mask = 1 <<  event_number:
+        self._write_and_read("e{}".format(event_mask))
+
 
     def close(self):
         self.ser.close()
