@@ -11,8 +11,12 @@ import serial.tools.list_ports
 import vert_scroll_frame as vsf
 import progress_dialog as prog
 
-class AboutDialog(tk.Frame):
+import interface
 
+class AboutDialog(tk.Frame):
+    """Just display a simple about box.
+
+    """
     def __init__(self, parent):
 
         top = tk.Toplevel(parent)
@@ -27,23 +31,17 @@ class AboutDialog(tk.Frame):
         panel.image = image
         panel.pack(side='right', padx=10, pady=10)
 
-        tk.Label(top, text="Datalogger Management Tool\nCoweeta Hydrologic Laboratory\nSouthern Research Station\nUSDA Forest Service").pack(side='top', padx=10, pady=10)
+        text = "\n".join([
+                "Datalogger Management Tool",
+                "Coweeta Hydrologic Laboratory",
+                "Southern Research Station",
+                "USDA Forest Service"])
+
+        tk.Label(top, text=text).pack(side='top', padx=10, pady=10)
 
         tk.Button(top, text="OK", command=top.destroy).pack(side='bottom', padx=10, pady=10)
 
         top.title("About Coweeta Log")
-
-
-class DownloadDialog(tk.Frame):
-
-    def __init__(self, parent):
-
-        top = tk.Toplevel(parent)
-
-        progress = ttk.Progressbar(top, orient=HORIZONTAL, length=100, mode='determinate')
-
-        tk.Button(top, text="Cancel", command=top.destroy).pack()
-
 
 
 class GuiLoggerInterface(tk.Frame):
@@ -127,10 +125,11 @@ class GuiLoggerInterface(tk.Frame):
         for filename in self._check_vars:
             if self._check_vars[filename].get():
                 filenames.append(filename)
-        self._callbacks['begin_fetch'](filenames)
-        dialog = prog.ProgressDialog(self, self._callbacks['step_fetch'], self._callbacks['halt_fetch'])
+        total_size, first_filename = self._callbacks['begin_fetch'](filenames)
+        dialog = prog.ProgressDialog(self, total_size, first_filename, self._callbacks['step_fetch'], self._callbacks['halt_fetch'])
 
         self.wait_window(dialog.top)
+
 
     def _set_up_file_list_frame(self):
         import vert_scroll_frame as vsf
@@ -262,72 +261,84 @@ class GuiLoggerInterface(tk.Frame):
 
 if __name__ == "__main__":
 
-    import numpy as np
-
-    import time
-
-    def connect(device):
-        print("connect to {}".format(device))
-        bp()
-        #TEMP!!! self.control = control.DataLoggerInterface(device_name=device, debug=True)
-
-    def disconnect():
-        print("disconnect")
-        window.populate_file_list([], '')
-        window.update_time_discrepancy(None)
-        window.update_log_time(None)
-
     class Bob(object):
 
         def __init__(self):
             self.x = 0
             self.fn = None
             self.step = None
+            self.control = None
+            self._current_fetch = None
+            self._fetch_filenames = []
+
+        def _update_file_list(self):
+            file_list = self.control.list_files()
+            active_num = self.control.get_active_file_num()
+            active_file = "LOGGER{:02}.CSV".format(active_num)
+            window.populate_file_list(file_list, active_file)
+
+
+        def connect(self, device):
+            print("connect to {}".format(device))
+            self.control = interface.DataLoggerInterface(device_name=device, debug=True)
+            self._update_file_list()
+
+        def disconnect(self):
+            print("disconnect")
+            self.control = None
+            window.populate_file_list([], '')
+            window.update_time_discrepancy(None)
+            window.update_log_time(None)
+
 
         def begin_fetch(self, filenames):
-            self.fn = filenames
-            self.step = 10 * len(self.fn)
-            print("begin", filenames, self.step)
+            self._fetch_filenames = filenames
+            self._current_fetch = 0
+            all_file_sizes = dict(self.control.list_files())
+            download_file_sizes = [all_file_sizes[filename] for filename in filenames]
+            download_bytes_total = sum(download_file_sizes)
+            print("begin", filenames, download_file_sizes)
+            first_filename = self._fetch_filenames[self._current_fetch]
+            self.control.start_download_file(first_filename)
+            return download_bytes_total, first_filename
 
         def step_fetch(self):
-            time.sleep(0.05)
+            all_done = False
+            next_file = None
+            (bytes_left, bytes_read) = self.control.download_chunk()
+            print('STEP #TEMP!!! ', bytes_left, bytes_read)
 
-            if self.x % 10 == 0:
-                q = self.x // 10
-                fn = self.fn[q % len(self.fn)]
-                print(q, fn)
-            else:
-                fn = None
-            self.x += 1
-            return (self.x == self.step), int(100 * self.x / self.step), fn
+            if bytes_left == 0:
+                self._current_fetch += 1
+                if self._current_fetch == len(self._fetch_filenames):
+                    all_done = True
+                    self._update_file_list()
+                else:
+                    next_file = self._fetch_filenames[self._current_fetch]
+                    self.control.start_download_file(next_file)
+
+            return all_done, bytes_read, next_file
 
 
         def halt_fetch(self):
-            print("Halting at {}".format(self.x))
+            print("Halting at {}".format(self._current_fetch))
+            self.control.abort_download()
+            self._update_file_list()
+
+        def sync_time(self):
+            self.control.sync_time()
 
 
+    bob = Bob()  #TEMP!!! rename
 
-    def bp():
-        window.update_time_discrepancy(datetime.timedelta(days=np.random.randn()/2))
-        window.update_log_time(datetime.timedelta(hours=np.random.random()))
-        num = np.random.randint(1, 20)
-        file_list = [("DIR/", None)] + [("LOG{:02}.CSV".format(n), np.random.randint(20, 20000)) for n in range(num)]
-        print(file_list)
-
-        window.populate_file_list(file_list, "LOG{:02}.CSV".format(np.random.randint(1, num)))
-
-
-        print("but pressed")
-
-    bob = Bob()
     callbacks = {
-        "connect": connect,
-        "disconnect": disconnect,
-        "resync":bp,
-        "log_now":bp,
-        'begin_fetch':bob.begin_fetch,
-        'step_fetch':bob.step_fetch,
-        'halt_fetch':bob.halt_fetch}
+        "connect": bob.connect,
+        "disconnect": bob.disconnect,
+        "resync": bob.sync_time,
+        "log_now": bob.sync_time,  #TEMP!!!
+        'begin_fetch': bob.begin_fetch,
+        'step_fetch': bob.step_fetch,
+        'halt_fetch': bob.halt_fetch}
 
     window = GuiLoggerInterface(callbacks, tk.Tk())
     window.pack()

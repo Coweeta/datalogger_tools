@@ -5,11 +5,12 @@ import time
 
 class ProgressDialog(tk.Tk):
 
-    def __init__(self, parent, download_callback, halt_callback):
+    def __init__(self, parent, total_size, first_filename, download_callback, halt_callback):
         self.top = tk.Toplevel(parent)
 
         self._download_callback = download_callback
         self._halt_callback = halt_callback
+        self._total_size = total_size
 
         self.listbox = tk.Listbox(self.top, width=20, height=5)
         self._progress_bar = ttk.Progressbar(self.top, orient='horizontal',
@@ -22,6 +23,7 @@ class ProgressDialog(tk.Tk):
 
         self._state = 'running'
         self._percent = 0
+        self.listbox.insert('end', first_filename)
 
         self._periodic_call()
 
@@ -36,10 +38,8 @@ class ProgressDialog(tk.Tk):
 
     def _periodic_call(self):
         if self._state == 'running':
-            done, percent, new_filename = self._download_callback()
-            if percent != self._percent:
-                self._progress_bar.step(percent - self._percent)
-                self._percent = percent
+            done, bytes_read, new_filename = self._download_callback()
+            self._progress_bar.step(100 * bytes_read / self._total_size)
             if new_filename is not None:
                 self.listbox.insert('end', new_filename)
             if done:

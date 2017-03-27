@@ -112,8 +112,6 @@ File set_log_file(int file_num, int mode) {
   if (!log_file) {
     die("Couldn't create file.");
   }
-  log_file.println("# Coweeta log file");
-  log_file.flush();
   return log_file;
 
 }

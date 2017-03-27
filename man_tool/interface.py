@@ -12,9 +12,11 @@ class DataLoggerInterface:
 
         deviceName would be something like "/dev/ttyUSB0"
         """
-        self.ser = serial.Serial(device_name, 115200, xonxoff=1, rtscts=0, timeout=0.1)
+        self.ser = serial.Serial(device_name, 115200, xonxoff=1, rtscts=0, timeout=0.2)
         self.debug = debug
-
+        self._download_file = None
+        self._download_filename = None
+        self._file_bytes_left = 0
 
     def __del__(self):
         """close connection on object destruction"""
@@ -55,12 +57,41 @@ class DataLoggerInterface:
         return False
 
 
-    def download_file(self, file_num, filename, and_delete=False):
-        lines = self._write_and_read("G{}".format(file_num))
-        with open(filename, 'w') as file:
-            file.writelines([line + "\n" for line in lines])
-        if and_delete:
-            self._write_and_read("R{}".format(file_num))
+    def start_download_file(self, filename):
+        self._download_filename = filename
+        if self._file_bytes_left != 0:
+            print("ERROR", self._file_bytes_left)   #TEMP!!! how to handle????
+
+        self._flush()
+        self.ser.write(bytes("G{}|".format(filename), 'utf-8'))
+        size_line = self.ser.readline()
+        print("###", size_line)
+        self._file_bytes_left = int(size_line)
+        self._download_file = open(filename, 'wb')
+
+
+    def download_chunk(self):
+        bytes = self.ser.read(min(5000, self._file_bytes_left))
+
+        self._download_file.write(bytes)
+        bytes_read = len(bytes)
+        self._file_bytes_left -= bytes_read
+
+        if self._file_bytes_left == 0:
+            self._download_file.close()
+            term = self.ser.readlines()
+            if len(term) != 1 or term[0] != b">":
+                print("ERROR", term)   #TEMP!!! how to handle????
+            else:
+                self._write_and_read("R{}|".format(self._download_filename))
+        return (self._file_bytes_left, bytes_read)
+
+
+    def abort_download(self):
+        self.ser.write(bytes(" ", 'utf-8'))
+        self._flush()
+        self._download_file.close()
+        self._file_bytes_left = 0
 
 
     def sync_time(self):
@@ -99,8 +130,9 @@ class DataLoggerInterface:
                 file_list.append((line, None))
         return file_list
 
+
     def trigger_event(self, event_number):
-        event_mask = 1 <<  event_number:
+        event_mask = 1 <<  event_number
         self._write_and_read("e{}".format(event_mask))
 
 

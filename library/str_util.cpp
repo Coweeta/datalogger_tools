@@ -1,7 +1,9 @@
 #include "str_util.h"
 
 
-static char line[160];  //TEMP!!! hardcoded  :(
+extern char char_buf[];   //TEMP!!! hack
+
+char *line = char_buf;  //TEMP!!! hardcoded  :(
 static char *cursor;
 
 void two_digit(int n) {
