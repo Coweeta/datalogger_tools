@@ -106,10 +106,6 @@ class GuiLoggerInterface(tk.Frame):
             self._time_error_label.configure(text=text, foreground='#000000')
 
 
-    def _fetch_files(self):
-        self._callbacks['resync']
-
-
     def _invert_file_selection(self):
         for file_sel in self._check_vars.values():
             file_sel.set(not file_sel.get())
@@ -130,6 +126,9 @@ class GuiLoggerInterface(tk.Frame):
 
         self.wait_window(dialog.top)
 
+    def _refresh_file_list(self):
+        file_list, active = self._callbacks['get_file_list']()
+        self.populate_file_list(file_list, active)
 
     def _set_up_file_list_frame(self):
         import vert_scroll_frame as vsf
@@ -138,6 +137,7 @@ class GuiLoggerInterface(tk.Frame):
         self._list_frame = vsf.VerticalScrolledFrame(self._file_frame, background="#00ff00")
 
         f = tk.Frame(self._file_frame)
+        tk.Button(f, text='Refresh', command=self._refresh_file_list).pack(side='left')
         tk.Button(f, text='Toggle', command=self._invert_file_selection).pack(side='left')
         tk.Button(f, text='Clear', command=self._clear_file_selection).pack(side='left')
         tk.Button(f, text='Fetch', command=self._fetch_files).pack(side='right')
@@ -272,9 +272,7 @@ if __name__ == "__main__":
             self._fetch_filenames = []
 
         def _update_file_list(self):
-            file_list = self.control.list_files()
-            active_num = self.control.get_active_file_num()
-            active_file = "LOGGER{:02}.CSV".format(active_num)
+            file_list, active_file = self.get_file_list()
             window.populate_file_list(file_list, active_file)
 
 
@@ -328,12 +326,20 @@ if __name__ == "__main__":
         def sync_time(self):
             self.control.sync_time()
 
+        def get_file_list(self):
+            file_list = self.control.list_files()
+            active_num = self.control.get_active_file_num()
+            active_file = "LOGGER{:02}.CSV".format(active_num)
+
+            return file_list, active_file
+
 
     bob = Bob()  #TEMP!!! rename
 
     callbacks = {
         "connect": bob.connect,
         "disconnect": bob.disconnect,
+        'get_file_list': bob.get_file_list,
         "resync": bob.sync_time,
         "log_now": bob.sync_time,  #TEMP!!!
         'begin_fetch': bob.begin_fetch,
