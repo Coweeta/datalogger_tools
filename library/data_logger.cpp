@@ -113,6 +113,12 @@ static void process_commands(void)
 
   const int command = Serial.read();
   switch(command) {
+  case 'v':
+    {
+      // protocol version
+      Serial.println("COW0.0");
+    }
+    break;
   case 'e':
     {
       // trigger_event()

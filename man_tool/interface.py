@@ -1,6 +1,9 @@
 import time
 import serial
 
+class DataLoggerFault(Exception):
+    pass
+
 class DataLoggerInterface:
     """Wrapper to control Coweeta's Arduino based datalogger.
 
@@ -45,6 +48,13 @@ class DataLoggerInterface:
                     return lines
                 lines.append(line)
 
+
+    def check_protocol_version(self):
+        version_string = self._write_and_read("v")
+        if version_string[:3] != "COW":
+            raise DataLoggerFault("Device may not be a Coweeta data logger", version_string)
+        if version_string[3:] != "0.0":
+            raise DataLoggerFault("Device uses newer protocol than this appliation supports", version_string)
 
 
     def wait_for_prompt(self):
