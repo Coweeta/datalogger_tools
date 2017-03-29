@@ -32,7 +32,7 @@ static const int sensor_pin = A0;
 // duration given in hours, minutes and seconds to the equivalent number of
 // seconds.
 static const EventSchedule schedule[] = {
-    event(HMS(0, 1, 0))
+    event("main", HMS(0, 1, 0))
 };
 
 

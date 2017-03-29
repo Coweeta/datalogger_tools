@@ -21,6 +21,7 @@ typedef enum {
 // event handling code on it.
 typedef struct {
   EventCategory category;
+  const char *name;
   int16_t interval;
   int16_t offset;
 } EventSchedule;
@@ -98,9 +99,9 @@ public:
 
 // A convenience function used to construct the EventSchedule array used by
 // Datalogger::set_schedule() as part of set up.
-inline EventSchedule event(int16_t interval, int16_t offset=0)
+inline EventSchedule event(const char* name, int16_t interval, int16_t offset=0)
 {
-  return {Normal, interval, offset};
+  return {.category=Normal, .name=name, .interval=interval, .offset=offset};
 }
 
 

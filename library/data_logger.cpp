@@ -11,7 +11,7 @@
 #include "junk.h"
 #include "str_util.h"
 
-char char_buf[128];   //TEMP!!!  global for now: used by str_util.cpp
+char char_buf[256];   //TEMP!!!  global for now: used by str_util.cpp
 
 namespace coweeta {
 
@@ -184,6 +184,12 @@ static void process_commands(void)
     junk::print_root_directory();
     break;
 
+  case 'n':
+    // list event names
+    for (uint8_t i = 0; i < _num_events; i++) {
+      Serial.println(_schedule[i].name);
+    }
+    break;
 
   default:
     Serial.print("?");
@@ -207,7 +213,7 @@ void DataLogger::setup(void)
 
   pinMode(led_pin, OUTPUT);
 
-  Serial.begin(115200);
+  Serial.begin(230400);
   Serial.println("Coweeta Hydrologic Lab Datalogger");
 
 
@@ -219,7 +225,7 @@ void DataLogger::setup(void)
   }
 
   pinMode(logger_cs_pin, OUTPUT);
-  if (!SD.begin(logger_cs_pin)) {
+  if (!SD.begin(logger_cs_pin, 11, 12, 13)) {
     junk::die("Data logger card failed, or not present.");
   }
 

@@ -72,15 +72,13 @@ enum {
 // 10 seconds before the start of the minute, then read 1 occurs on the minute,
 // followed 10 seconds later by read 2.
 static const EventSchedule schedule[] = {
-  event(HMS(0, 1, 0)),  // alfa_read
-  event(HMS(0, 0, 30)),  // bravo_read_1
-  event(HMS(0, 5, 0), 10),  // bravo_read_2
-  event(HMS(0, 5, 0), -10) // bravo_energize
+  event("MCP9808", HMS(0, 1, 0)),  
+  event("AM416", HMS(0, 0, 30))
 };
 
 void setup() {
   logger.setup();
-  logger.set_schedule(schedule, 4);
+  logger.set_schedule(schedule, 2);
 
   // set up multiplexer control
   pinMode(am_rst, OUTPUT);

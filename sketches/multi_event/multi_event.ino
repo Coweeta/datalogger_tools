@@ -13,6 +13,7 @@
 
 #include "data_logger.h"
 
+#include <avr/pgmspace.h>
 
 // Spare ourselves from having to prepend "coweeta::" to any the entities we use
 // from  data_logger.h
@@ -50,10 +51,10 @@ enum {
 // 10 seconds before the start of the minute, then read 1 occurs on the minute,
 // followed 10 seconds later by read 2.
 static const EventSchedule schedule[] = {
-  event(HMS(0, 1, 0)),  // alfa_read
-  event(HMS(0, 5, 0)),  // bravo_read_1
-  event(HMS(0, 5, 0), 10),  // bravo_read_2
-  event(HMS(0, 5, 0), -10) // bravo_energize
+  event("alfa_read", HMS(0, 1, 0)),
+  event("bravo_read_1", HMS(0, 5, 0)),
+  event("bravo_read_2", HMS(0, 5, 0), 10),
+  event("bravo_energize", HMS(0, 5, 0), -10)
 };
 
 
@@ -96,6 +97,7 @@ static const char* get_change(void) {
 // It is in this function that all of the logging occurs.
 //
 void loop() {
+
   // First we wait until it is time to do something or until a human operator
   // has requested something happens.  In this case this would be at the start
   // of each minute.
