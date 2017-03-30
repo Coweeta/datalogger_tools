@@ -119,6 +119,7 @@ class GuiLoggerInterface(tk.Frame):
     def _fetch_files(self):
         filenames = []
         for filename in self._check_vars:
+            print("ZZZ", filename, self._check_vars[filename].get())
             if self._check_vars[filename].get():
                 filenames.append(filename)
         total_size, first_filename = self._callbacks['begin_fetch'](filenames)
@@ -152,6 +153,7 @@ class GuiLoggerInterface(tk.Frame):
 
 
     def populate_file_list(self, file_list, active):
+        self._check_vars = {}
         for check_button, filename_widget, size_widget in self._file_widgets:
             check_button.grid_forget()
             filename_widget.grid_forget()
@@ -160,7 +162,7 @@ class GuiLoggerInterface(tk.Frame):
             del(filename_widget)
             del(size_widget)
 
-        #TEMP!!! del check vars
+
 
         for row in range(len(file_list)):
             if row % 2:

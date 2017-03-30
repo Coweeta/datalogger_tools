@@ -10,8 +10,10 @@ class ProgressDialog(tk.Tk):
 
         self._download_callback = download_callback
         self._halt_callback = halt_callback
-        self._total_size = total_size
-
+        if total_size > 0:
+            self._total_size = total_size
+        else:
+            self._total_size = 1
         self.listbox = tk.Listbox(self.top, width=20, height=5)
         self._progress_bar = ttk.Progressbar(self.top, orient='horizontal',
                                            length=300, mode='determinate')
