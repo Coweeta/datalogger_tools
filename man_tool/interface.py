@@ -54,12 +54,12 @@ class DataLoggerInterface:
 
     def get_event_names(self, trigger_mask=None):
         if trigger_mask is None:
-            return _event_names
+            return self._event_names
         else:
             matching_events = []
-            for i in range(16):
+            for i, name in enumerate(self._event_names):
                 if trigger_mask & (1 << i):
-                    matching_events.append(_event_names[i])
+                    matching_events.append(name)
             return matching_events
 
 
@@ -173,9 +173,15 @@ class DataLoggerInterface:
     def trigger_events(self, event_list):
         event_mask = 0
         for event_name in event_list:
-            index = self._event_names.find(event_name)
+            index = self._event_names.index(event_name)
             event_mask += 1 << index
-        self._write_and_read("e{}".format(event_mask))
+        result = self._write_and_read("e{}".format(event_mask))
+        if len(result) > 1:
+            raise DataLoggerFault('bad log length', result)
+        if len(result) == 0:
+            return ''
+        else:
+            return result[0]
 
 
     def get_next_event(self):
@@ -183,9 +189,9 @@ class DataLoggerInterface:
         delay = int(delay_str)
         event_mask = int(event_str)
         next_event_names = []
-        for i in range(len(self._event_names)):
+        for i, name in enumerate(self._event_names):
             if event_mask & (1 << i):
-                next_event_names.append(self._event_names[i])
+                next_event_names.append(name)
         return delay, next_event_names
 
 

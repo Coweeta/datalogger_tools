@@ -55,6 +55,8 @@ class GuiLoggerInterface(tk.Frame):
         *callbacks* is a dictionary of functions
         *parent* is #TEMP!!!
         """
+        parent.option_add("*Font", "helvetica 16")
+
         tk.Frame.__init__(self, parent)
         self._callbacks = callbacks
         self._parent = parent
@@ -131,9 +133,11 @@ class GuiLoggerInterface(tk.Frame):
 
         self.wait_window(dialog.top)
 
+
     def _refresh_file_list(self):
         file_list, active = self._callbacks['get_file_list']()
         self.populate_file_list(file_list, active)
+
 
     def _set_up_file_list_frame(self):
         import vert_scroll_frame as vsf
@@ -207,18 +211,32 @@ class GuiLoggerInterface(tk.Frame):
         time_text = tk.Label(self._log_frame, text='Time to next log event')
         self.wait_time_label = tk.Label(self._log_frame, relief="sunken")
         self.next_events_label = tk.Label(self._log_frame, relief="sunken")
-        log_now_button = tk.Button(self._log_frame, text="Trigger Log Now", command=self._callbacks['log_now'])
+        log_now_button = tk.Button(self._log_frame, text="Trigger Log Now", command=self._trigger_event)
 
         time_text.pack(side='left')
         self.wait_time_label.pack(side='left')
         self.next_events_label.pack(side='left')
+        self._trigger_frame = tk.Frame(self._log_frame, relief='ridge', borderwidth=3)
         log_now_button.pack(side='left')
+        self._trigger_frame.pack(side='bottom')
+        self._trigger_vars = {}
+        self._trigger_widgets = {}
+        self._log_text = tk.Text(self._right_panel)
+        self._log_text.pack(side='bottom')
 
         self.update_log_time(None)
 
 
     def update_log_time_window(self, event_names):
-        pass
+        for var in self._trigger_vars.values():
+            del(var)
+        for widget in self._trigger_widgets.values():
+            del(widget)
+
+        for i, name in enumerate(event_names):
+            self._trigger_vars[name] = tk.IntVar()
+            self._trigger_widgets[name] = tk.Checkbutton(self._trigger_frame, text=name, variable=self._trigger_vars[name])
+            self._trigger_widgets[name].pack(side='bottom')
 
 
     def update_log_time(self, time_delay, events=None):
@@ -233,6 +251,15 @@ class GuiLoggerInterface(tk.Frame):
             self.next_events_label.configure(text=text, foreground='#000000')
 
 
+    def _trigger_event(self):
+        event_list = []
+        for name, state in self._trigger_vars.items():
+            if state.get():
+                event_list.append(name)
+        print(event_list)
+        result = self._callbacks['trigger_event'](event_list)
+        print(result)
+        self._log_text.insert(tk.END, result + "\n")
 
     def _make_menus(self):
         menu_bar = tk.Menu(self)
@@ -286,6 +313,7 @@ if __name__ == "__main__":
             self.control = None
             self._current_fetch = None
             self._fetch_filenames = []
+            self._downloading = False
 
 
         def _update_file_list(self):
@@ -311,6 +339,7 @@ if __name__ == "__main__":
 
 
         def begin_fetch(self, filenames):
+            self._downloading = True
             self._fetch_filenames = filenames
             self._current_fetch = 0
             all_file_sizes = dict(self.control.list_files())
@@ -331,6 +360,7 @@ if __name__ == "__main__":
                 self._current_fetch += 1
                 if self._current_fetch == len(self._fetch_filenames):
                     all_done = True
+                    self._downloading = False
                     self._update_file_list()
                 else:
                     next_file = self._fetch_filenames[self._current_fetch]
@@ -341,6 +371,7 @@ if __name__ == "__main__":
 
         def halt_fetch(self):
             print("Halting at {}".format(self._current_fetch))
+            self._downloading = False
             self.control.abort_download()
             self._update_file_list()
 
@@ -359,11 +390,12 @@ if __name__ == "__main__":
             return file_list, active_file
 
         def periodic(self):
-            if self.control is not None:
+            if self.control is not None and not self._downloading:
                 delay, event_names = self.control.get_next_event()
                 window.update_log_time(delay, event_names)
 
-
+        def log_now(self, event_names):
+            return self.control.trigger_events(event_names)
 
     bob = Bob()  #TEMP!!! rename
 
@@ -372,7 +404,7 @@ if __name__ == "__main__":
         "disconnect": bob.disconnect,
         'get_file_list': bob.get_file_list,
         "resync": bob.sync_time,
-        "log_now": bob.sync_time,  #TEMP!!!
+        "trigger_event": bob.log_now,
         'begin_fetch': bob.begin_fetch,
         'step_fetch': bob.step_fetch,
         'halt_fetch': bob.halt_fetch,

@@ -32,7 +32,7 @@ static const int logger_cs_pin = 10;
 static const int bad_led_pin = 3;
 static const int good_led_pin = 4;
 static File _download_file;
-
+static bool _show_prompt;
 static uint32_t next_time_for_event(const EventSchedule* schedule)
 {
   const int16_t interval = schedule->interval;
@@ -71,6 +71,7 @@ static void output_any_line()
       log_file.flush();
     } else if (_state == TERM_LOG) {
       Serial.println(line);
+      _show_prompt = true;
     }
 
   }
@@ -111,7 +112,7 @@ static const char *read_serial_string_to_buf(void)
 
 static void process_commands(void)
 {
-
+  _show_prompt = true; // by default
   const int command = Serial.read();
   switch(command) {
   case 'v':
@@ -125,6 +126,7 @@ static void process_commands(void)
       // trigger_event()
       _triggered_events = junk::get_int(0, (1 << _num_events) - 1);
       _state = TERM_LOG;
+      _show_prompt = false;
     }
     break;
 
@@ -207,7 +209,6 @@ static void process_commands(void)
 
 
   }
-  Serial.print(">");
 }
 
 DataLogger::DataLogger()
@@ -224,6 +225,7 @@ void DataLogger::setup(void)
 
   Serial.begin(230400);
   Serial.println("Coweeta Hydrologic Lab Datalogger");
+  _show_prompt = true;
 
 
   // connect to RTC
@@ -266,12 +268,17 @@ void DataLogger::set_schedule(const EventSchedule *schedule, uint8_t num_events)
 
 void DataLogger::wait_for_event(void)
 {
+
   _now = junk::current_time();
   digitalWrite(good_led_pin, LOW);
   _state = WAITING;
   compute_next_time();
   while (_state == WAITING) {
     _now = junk::current_time();
+    if (_show_prompt) {
+      Serial.print(">");
+      _show_prompt = false;
+    }
     if (_now == _next_time) {
       _state = FILE_LOG;
     } else if (Serial.available()) {
