@@ -60,7 +60,11 @@ class GuiLoggerInterface(tk.Frame):
         self._parent = parent
         self._device_name = None
         self._make_menus()
-        self._connect_button = tk.Button(self, text="Connect", command=self._connect_to_port)
+
+        self._left_panel =  tk.Frame(self, relief='ridge', borderwidth=3)
+        self._right_panel =  tk.Frame(self, relief='ridge', borderwidth=3)
+
+        self._connect_button = tk.Button(self._left_panel, text="Connect", command=self._connect_to_port)
         self._connect_button.pack()
 
         self._set_up_file_list_frame()
@@ -74,10 +78,13 @@ class GuiLoggerInterface(tk.Frame):
 
         self._parent.wm_title("Coweeta Log")
 
+        self._left_panel.pack(side='left', expand=True)
+        self._right_panel.pack(side='right', expand=True)
 
+        self.after(1000, self._periodic_call)
 
     def _set_up_time_error_frame(self):
-        self._time_frame = tk.Frame(self, relief='ridge', borderwidth=3)
+        self._time_frame = tk.Frame(self._left_panel, relief='ridge', borderwidth=3)
         time_text = tk.Label(self._time_frame, text='Time error')
         self._time_error_label = tk.Label(self._time_frame, relief="sunken")
         resync_button = tk.Button(self._time_frame, text="Resync Logger", command=self._callbacks['resync'])
@@ -96,13 +103,10 @@ class GuiLoggerInterface(tk.Frame):
         """
         if time_error is None:
             self._time_error_label.configure(text='-', foreground='#BBBBBB')
-        elif abs(time_error) > datetime.timedelta(days=1):
+        elif abs(time_error) > 10000:
             self._time_error_label.configure(text='TOO BIG', foreground='#FF0000')
         else:
-            if time_error < datetime.timedelta(seconds=0):
-                text = "-" + str(-time_error)
-            else:
-                text = str(time_error)
+            text = "{:0.3f}s".format(time_error)
             self._time_error_label.configure(text=text, foreground='#000000')
 
 
@@ -134,7 +138,7 @@ class GuiLoggerInterface(tk.Frame):
     def _set_up_file_list_frame(self):
         import vert_scroll_frame as vsf
 
-        self._file_frame = tk.Frame(self, relief='ridge', borderwidth=3)
+        self._file_frame = tk.Frame(self._left_panel, relief='ridge', borderwidth=3)
         self._list_frame = vsf.VerticalScrolledFrame(self._file_frame, background="#00ff00")
 
         f = tk.Frame(self._file_frame)
@@ -161,8 +165,6 @@ class GuiLoggerInterface(tk.Frame):
             del(check_button)
             del(filename_widget)
             del(size_widget)
-
-
 
         for row in range(len(file_list)):
             if row % 2:
@@ -194,29 +196,41 @@ class GuiLoggerInterface(tk.Frame):
 
             self._file_widgets.append((check_button, filename_widget, size_widget))
 
-
+    def _periodic_call(self):
+        self._callbacks['periodic']()
+        self.after(1000, self._periodic_call)
 
 
 
     def _set_up_log_time(self):
-        self._log_frame = tk.Frame(self, relief='ridge', borderwidth=3)
+        self._log_frame = tk.Frame(self._right_panel, relief='ridge', borderwidth=3)
         time_text = tk.Label(self._log_frame, text='Time to next log event')
         self.wait_time_label = tk.Label(self._log_frame, relief="sunken")
+        self.next_events_label = tk.Label(self._log_frame, relief="sunken")
         log_now_button = tk.Button(self._log_frame, text="Trigger Log Now", command=self._callbacks['log_now'])
 
         time_text.pack(side='left')
         self.wait_time_label.pack(side='left')
+        self.next_events_label.pack(side='left')
         log_now_button.pack(side='left')
 
         self.update_log_time(None)
 
 
-    def update_log_time(self, time_delay):
+    def update_log_time_window(self, event_names):
+        pass
+
+
+    def update_log_time(self, time_delay, events=None):
         if time_delay is None:
             self.wait_time_label.configure(text='-', foreground='#BBBBBB')
+            self.next_events_label.configure(text='-', foreground='#BBBBBB')
         else:
-            text = str(time_delay).split('.')[0]
+            text = str(int(time_delay))
+            print('#TEMP!!! ', text)
             self.wait_time_label.configure(text=text, foreground='#000000')
+            text = ", ".join(events)
+            self.next_events_label.configure(text=text, foreground='#000000')
 
 
 
@@ -273,6 +287,7 @@ if __name__ == "__main__":
             self._current_fetch = None
             self._fetch_filenames = []
 
+
         def _update_file_list(self):
             file_list, active_file = self.get_file_list()
             window.populate_file_list(file_list, active_file)
@@ -282,6 +297,10 @@ if __name__ == "__main__":
             print("connect to {}".format(device))
             self.control = interface.DataLoggerInterface(device_name=device, debug=True)
             self._update_file_list()
+            time_delta = self.control.get_time_delta()
+            window.update_time_discrepancy(time_delta)
+            event_names = self.control.get_event_names()
+            window.update_log_time_window(event_names)
 
         def disconnect(self):
             print("disconnect")
@@ -325,8 +344,12 @@ if __name__ == "__main__":
             self.control.abort_download()
             self._update_file_list()
 
+
         def sync_time(self):
             self.control.sync_time()
+            time_delta = self.control.get_time_delta()
+            window.update_time_discrepancy(time_delta)
+
 
         def get_file_list(self):
             file_list = self.control.list_files()
@@ -334,6 +357,12 @@ if __name__ == "__main__":
             active_file = "LOGGER{:02}.CSV".format(active_num)
 
             return file_list, active_file
+
+        def periodic(self):
+            if self.control is not None:
+                delay, event_names = self.control.get_next_event()
+                window.update_log_time(delay, event_names)
+
 
 
     bob = Bob()  #TEMP!!! rename
@@ -346,7 +375,8 @@ if __name__ == "__main__":
         "log_now": bob.sync_time,  #TEMP!!!
         'begin_fetch': bob.begin_fetch,
         'step_fetch': bob.step_fetch,
-        'halt_fetch': bob.halt_fetch}
+        'halt_fetch': bob.halt_fetch,
+        'periodic': bob.periodic}
 
     window = GuiLoggerInterface(callbacks, tk.Tk())
     window.pack()

@@ -169,6 +169,7 @@ static void process_commands(void)
       const uint32_t unix_time = Serial.parseInt();
       Serial.println(unix_time);
       rtc.adjust(DateTime(unix_time));
+      compute_next_time();
       Serial.println();
     }
     break;
@@ -190,6 +191,12 @@ static void process_commands(void)
     for (uint8_t i = 0; i < _num_events; i++) {
       Serial.println(_schedule[i].name);
     }
+    break;
+
+  case 'w':
+    // report wait for next event
+    Serial.println(_next_time - _now);
+    Serial.println(_triggered_events);
     break;
 
   default:

@@ -20,6 +20,9 @@ class DataLoggerInterface:
         self._download_file = None
         self._download_filename = None
         self._file_bytes_left = 0
+        self.check_protocol_version()
+        self._event_names = self._write_and_read("n")
+
 
     def __del__(self):
         """close connection on object destruction"""
@@ -49,12 +52,26 @@ class DataLoggerInterface:
                 lines.append(line)
 
 
+    def get_event_names(self, trigger_mask=None):
+        if trigger_mask is None:
+            return _event_names
+        else:
+            matching_events = []
+            for i in range(16):
+                if trigger_mask & (1 << i):
+                    matching_events.append(_event_names[i])
+            return matching_events
+
+
     def check_protocol_version(self):
-        version_string = self._write_and_read("v")
+        version_response = self._write_and_read("v")
+        if len(version_response) != 1:
+            raise DataLoggerFault("Device may not be a Coweeta data logger", version_response)
+        version_string = str(version_response[0])
         if version_string[:3] != "COW":
             raise DataLoggerFault("Device may not be a Coweeta data logger", version_string)
         if version_string[3:] != "0.0":
-            raise DataLoggerFault("Device uses newer protocol than this appliation supports", version_string)
+            raise DataLoggerFault("Device uses newer protocol than this application supports", version_string)
 
 
     def wait_for_prompt(self):
@@ -104,6 +121,17 @@ class DataLoggerInterface:
         self._file_bytes_left = 0
 
 
+    def get_time_delta(self):
+        lines = self._write_and_read("t")
+        if len(lines) != 1:
+            raise Exception("bad num lines", lines)
+        their_time = int(lines[0])
+        our_time = time.time()
+        delta = their_time - our_time
+        print("TDTDTD", delta)
+        return delta
+
+
     def sync_time(self):
         lines = self._write_and_read("t")
         if len(lines) != 1:
@@ -141,9 +169,24 @@ class DataLoggerInterface:
         return file_list
 
 
-    def trigger_event(self, event_number):
-        event_mask = 1 <<  event_number
+
+    def trigger_events(self, event_list):
+        event_mask = 0
+        for event_name in event_list:
+            index = self._event_names.find(event_name)
+            event_mask += 1 << index
         self._write_and_read("e{}".format(event_mask))
+
+
+    def get_next_event(self):
+        delay_str, event_str = self._write_and_read("w")
+        delay = int(delay_str)
+        event_mask = int(event_str)
+        next_event_names = []
+        for i in range(len(self._event_names)):
+            if event_mask & (1 << i):
+                next_event_names.append(self._event_names[i])
+        return delay, next_event_names
 
 
     def close(self):
