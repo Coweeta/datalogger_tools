@@ -29,7 +29,8 @@ static File log_file;
 static int file_number = 0;
 static RTC_DS1307 rtc; // define the Real Time Clock object
 static const int logger_cs_pin = 10;
-static const int led_pin = 8;
+static const int bad_led_pin = 3;
+static const int good_led_pin = 4;
 static File _download_file;
 
 static uint32_t next_time_for_event(const EventSchedule* schedule)
@@ -211,7 +212,8 @@ DataLogger::DataLogger()
 void DataLogger::setup(void)
 {
 
-  pinMode(led_pin, OUTPUT);
+  pinMode(good_led_pin, OUTPUT);
+  pinMode(bad_led_pin, OUTPUT);
 
   Serial.begin(230400);
   Serial.println("Coweeta Hydrologic Lab Datalogger");
@@ -234,12 +236,16 @@ void DataLogger::setup(void)
   log_file.println("# Coweeta log file");
   log_file.flush();
 
+  digitalWrite(bad_led_pin, HIGH);
   for (uint8_t i = 0; i < 8; i++) {
     delay(50);
-    digitalWrite(led_pin, HIGH);
+    digitalWrite(good_led_pin, HIGH);
+    digitalWrite(bad_led_pin, LOW);
     delay(50);
-    digitalWrite(led_pin, LOW);
+    digitalWrite(good_led_pin, LOW);
+    digitalWrite(bad_led_pin, HIGH);
   }
+  digitalWrite(bad_led_pin, LOW);
 
 }
 
@@ -254,6 +260,7 @@ void DataLogger::set_schedule(const EventSchedule *schedule, uint8_t num_events)
 void DataLogger::wait_for_event(void)
 {
   _now = junk::current_time();
+  digitalWrite(good_led_pin, LOW);
   _state = WAITING;
   compute_next_time();
   while (_state == WAITING) {
@@ -266,6 +273,7 @@ void DataLogger::wait_for_event(void)
       delay(100);
     }
   }
+  digitalWrite(good_led_pin, HIGH);
 }
 
 
