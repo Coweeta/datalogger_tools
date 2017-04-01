@@ -4,6 +4,7 @@ import datetime
 import tkinter as tk
 import tkinter.ttk as ttk
 
+import coweeta_icons
 
 
 import serial.tools.list_ports
@@ -21,12 +22,12 @@ class AboutDialog(tk.Frame):
 
         top = tk.Toplevel(parent)
 
-        image = tk.PhotoImage(file="little-us-forest-service-logo.gif")
+        image = tk.PhotoImage(data=coweeta_icons.usfs)
         panel = tk.Label(top, image=image)
         panel.image = image
         panel.pack(side='left', padx=10, pady=10)
 
-        image = tk.PhotoImage(file="salamander-logo.gif")
+        image = tk.PhotoImage(data=coweeta_icons.salamandar)
         panel = tk.Label(top, image=image)
         panel.image = image
         panel.pack(side='right', padx=10, pady=10)
