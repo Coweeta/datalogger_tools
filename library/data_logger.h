@@ -34,7 +34,7 @@ typedef struct {
 class DataLogger {
 public:
   // Constructor takes no arguments.
-  DataLogger();
+  DataLogger(uint8_t good_led_pin=0, uint8_t bad_led_pin=0, uint8_t beeper_pin=0, uint8_t button_pin=0);
 
   // The setup() method is called from within the Arduino app's setup()
   // function.
