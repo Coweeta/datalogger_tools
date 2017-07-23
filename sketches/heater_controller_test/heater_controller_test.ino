@@ -30,7 +30,7 @@ enum {
 
 
 static const EventSchedule schedule[] = {
-  event("volt_read", HMS(0, 0, 2)),
+  event("volt_read", HMS(0, 0, 1)),
   event("heat_on", HMS(0, 1, 0)),
   event("heat_off", HMS(0, 1, 0), 30)
 };
@@ -65,7 +65,7 @@ public:
 
   void clear(void)
   {
-    min = 0;
+    min = 1024;
     max = 0;
     sum = 0;
     for (uint8_t i = 0; i < BINS; i++) {
