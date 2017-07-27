@@ -185,7 +185,7 @@ class DataLoggerInterface:
 
 
     def get_next_event(self):
-        delay_str, event_str = self._write_and_read("w")
+        delay_str, event_str, enabled_str  = self._write_and_read("w")
         delay = int(delay_str)
         event_mask = int(event_str)
         next_event_names = []

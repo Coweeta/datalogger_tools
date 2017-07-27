@@ -35,6 +35,9 @@ static int beeper_pin = 5;
 static int button_pin = 6;
 static File _download_file;
 static bool _show_prompt;
+static uint16_t _event_enabled = 0xFFFF;
+
+
 static uint32_t next_time_for_event(const EventSchedule* schedule)
 {
   const int16_t interval = schedule->interval;
@@ -47,20 +50,20 @@ static uint32_t next_time_for_event(const EventSchedule* schedule)
 static uint32_t compute_next_time(void)
 {
   _next_time = 0xFFFFFFFF;
-  _triggered_events = 0;
-  for (uint8_t i = 0; i < _num_events; i++) {
-    const uint32_t candidate = next_time_for_event(&_schedule[i]);
-    if (candidate < _next_time) {
-      _next_time = candidate;
-      _triggered_events = (1 << i);
-    } else if (candidate == _next_time) {
-      _triggered_events |= (1 << i);
+  _triggered_events = 0x0000;
+  uint16_t mask = 0x0001;
+  for (uint8_t i = 0; i < _num_events; i++, mask <<= 1) {
+    if ((_event_enabled & mask) != 0) {
+      const uint32_t candidate = next_time_for_event(&_schedule[i]);
+      if (candidate < _next_time) {
+        _next_time = candidate;
+        _triggered_events = mask;
+      } else if (candidate == _next_time) {
+        _triggered_events |= mask;
+      }
     }
   }
 }
-
-
-
 
 
 static void output_any_line()
@@ -201,6 +204,13 @@ static void process_commands(void)
     // report wait for next event
     Serial.println(_next_time - _now);
     Serial.println(_triggered_events);
+    Serial.println(_event_enabled);
+    break;
+
+  case 'E':
+    // enable schedule for events
+    _event_enabled = junk::get_int(0, (1 << _num_events) - 1);
+    compute_next_time();
     break;
 
   default:
@@ -208,10 +218,9 @@ static void process_commands(void)
     Serial.print(command);
     Serial.println("?");
 
-
-
   }
 }
+
 
 DataLogger::DataLogger(
   uint8_t good_led_pin_num=0,
