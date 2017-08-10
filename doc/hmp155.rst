@@ -1,0 +1,46 @@
+Campbell Scientific Wiring
+##########################
+
+==========  ====                     ================== ===================  ========
+Pin Number  Name                     Vaisala Wire Color Campbell Wire Color  My Color
+==========  ====                     ================== ===================  ========
+1           PT100                    white              yellow               -
+2           RH OUT 0...1 V/RS-485-B  brown              -                    green
+3           PT100                    green              white                -
+4           PT100                    yellow             blue                 -
+5           PT100                    grey               -                    -
+6           A GND/RS-485-A           pink               -                    white
+7           V CC                     blue               red                  red
+8 (center)  GND                      red                black                black
+-           SHIELD                   black
+
+
+
+
+RS485 Interface
+###############
+
+open 5
+commands
+close
+
+send 5
+
+smode poll
+form 5.2 rh t tw tdf #r#n
+form 5.2 rh t tw tdf #t cs4 #r#n
+unit m
+
+
+
+
+
+void set_up_interface(uint8_t address)
+{
+    rs485_write("form 5.1 rh t #t cs4 #r#n");
+    rs485_write("unit m");
+    rs485_write("smode poll");
+    rs485_write("form 5.1 rh t #t cs4 #r#n");
+    sprintf(str, "addr %3d", address) ;
+    rs485_write(str);
+}
