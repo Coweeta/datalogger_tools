@@ -142,7 +142,7 @@ Send
 ====
 
 === ===
-'tg' NUL
+'t' NUL
 === ===
 
 Receive
@@ -213,13 +213,16 @@ We might have hit an hour boundary and the code would be a bit tricky.
 list files
 ##########
 
-Request the names defined in the embedded code for each of the supported events.
+Request the names, sizes and datestamps of the file in the root of the SD card.
+Directories are flagged by having a size of '/'
+
+
 
 Send
 ====
 
 === ===
-'n' NUL
+'L' NUL
 === ===
 
 
@@ -227,52 +230,101 @@ Send
 Receive
 =======
 
-=== ====== ======= ====== ======= === ====== ======= ===
-'n' name 0 NEWLINE name 1 NEWLINE ... name N NEWLINE NUL
-=== ====== ======= ====== ======= === ====== ======= ===
+=== == ====== ===== ==== ===== ========== == ====== ===== ==== ===== ========== == === ====== ===== ==== ===== ========== == ===
+'L' NL name 0 SPACE size SPACE date stamp NL name 1 SPACE size SPACE date stamp NL ... name N SPACE size SPACE date stamp NL NUL
+=== == ====== ===== ==== ===== ========== == ====== ===== ==== ===== ========== == === ====== ===== ==== ===== ========== == ===
+
+
+remove file
+###########
+
+Request the given file is deleted
+
+
+Send
+====
+
+=== ========= ===
+'R' file name NUL
+=== ========= ===
 
 
 
+Receive
+=======
+
+=== ===
+'R' NUL
+=== ===
+
+
+advance active file
+###################
+
+Stop logging to the current active file and start on the next available.
+
+
+Send
+====
+
+=== ===
+'a' NUL
+=== ===
 
 
 
-+------------+------------+-----------+
-| Header 1   | Header 2   | Header 3  |
-+============+============+===========+
-| body row 1 | column 2   | column 3  |
-+------------+------------+-----------+
-| body row 2 | Cells may span columns.|
-+------------+------------+-----------+
-| body row 3 | Cells may  | - Cells   |
-+------------+ span rows. | - contain |
-| body row 4 |            | - blocks. |
-+------------+------------+-----------+
+Receive
+=======
+
+=== ========= ===
+'a' file name NUL
+=== ========= ===
+
+get active file
+###############
+
+Get the name of the file currently being written to.
+
+
+Send
+====
+
+=== ===
+'A' NUL
+=== ===
 
 
 
-+------------+-----------------------+-----------+
-| Header 1   | Header 2              | Header 3  |
-+============+=======================+===========+
-| body row 1 | column 2              | column 3  |
-+------------+-----------------------+-----------+
-| body row 2 | Cells may            span columns.|
-+------------+-----------------------+-----------+
-| body row 3 | Cells may             | - Cells   |
-+------------+ span rows             | - contain |
-| body row 4 |                       | - blocks. |
-+------------+-----------------------+-----------+
+Receive
+=======
+
+=== ========= ===
+'A' file name NUL
+=== ========= ===
 
 
-read_whole_file
-'Rfilename'
+get EEPROM text
+###############
+
+Dump the text stored in the eeprom.
 
 
-delete_file
-'Dfilename'
+Send
+====
+
+=== ===
+'M' NUL
+=== ===
 
 
-report_active_file
-'A'
+
+Receive
+=======
+
+=== ==== ===
+'M' text NUL
+=== ==== ===
+
 
 'wwwwwwnn'
 
