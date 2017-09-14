@@ -6,7 +6,7 @@ namespace coweeta {
 // This is used exclusively by the EventSchedule structure.
 typedef enum {
   Normal='n',
-  TriggeredOnly='t'
+  Disabled='d'
 } EventCategory;
 
 // This structure is used to define at what frequency events are indended to
@@ -94,14 +94,17 @@ public:
 
   void get_time(int *hour, int *minute, int *second);
 
+  void enable_events(uint16_t events);
+  void disable_events(uint16_t events);
+
 };
 
 
 // A convenience function used to construct the EventSchedule array used by
 // Datalogger::set_schedule() as part of set up.
-inline EventSchedule event(const char* name, int16_t interval, int16_t offset=0)
+inline EventSchedule event(const char* name, int16_t interval, int16_t offset=0, EventCategory category=Normal)
 {
-  return {.category=Normal, .name=name, .interval=interval, .offset=offset};
+  return {.category=category, .name=name, .interval=interval, .offset=offset};
 }
 
 

@@ -297,6 +297,11 @@ void DataLogger::set_schedule(const EventSchedule *schedule, uint8_t num_events)
 {
   _schedule = schedule;
   _num_events = num_events;
+  for (uint8_t i = 0; i < num_events; i++) {
+    if (schedule[i].category == Disabled) {
+      _event_enabled &= ~(1 << i);
+    }
+  }
 }
 
 
@@ -414,6 +419,15 @@ void DataLogger::get_time(int *hour, int *minute, int *second)
 
 }
 
+void DataLogger::enable_events(uint16_t events)
+{
+  _event_enabled |= events;
+}
+
+void DataLogger::disable_events(uint16_t events)
+{
+  _event_enabled &= ~events;
+}
 
 
 }  // namespace coweeta
