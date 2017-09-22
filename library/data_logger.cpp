@@ -1,9 +1,9 @@
 #if ARDUINO >= 100
-#include "Arduino.h"
+  #include "Arduino.h"
 #else
-#include "WProgram.h"
-#include "pins_arduino.h"
-#include "WConstants.h"
+  #include "WProgram.h"
+  #include "pins_arduino.h"
+  #include "WConstants.h"
 #endif
 
 
@@ -13,10 +13,19 @@
 
 char char_buf[256];   //TEMP!!!  global for now: used by str_util.cpp
 
+SdFat SD;  // The SD initialization
+
 namespace coweeta {
 
 
 enum {WAITING, FILE_LOG, TERM_LOG};
+
+
+static void default_wait_function(void)
+{
+  delay(100);
+}
+
 
 static const EventSchedule* _schedule;
 static uint8_t _num_events;
@@ -27,15 +36,16 @@ static uint16_t _triggered_events;
 static uint8_t _state;
 static File log_file;
 static int file_number = 0;
-static RTC_DS1307 rtc; // define the Real Time Clock object
-static int logger_cs_pin = 10;
+ //TEMP!!! static RTC_DS1307 rtc; // define the Real Time Clock object
+static int logger_cs_pin = 12;
 static int bad_led_pin = 3;
 static int good_led_pin = 4;
-static int beeper_pin = 5;
-static int button_pin = 6;
+static int beeper_pin = 0;
+static int button_pin = 0;
 static File _download_file;
 static bool _show_prompt;
 static uint16_t _event_enabled = 0xFFFF;
+static void (*_wait_function)(void) = default_wait_function;
 
 
 static uint32_t next_time_for_event(const EventSchedule* schedule)
@@ -175,7 +185,7 @@ static void process_commands(void)
       // set time for sync_time()
       const uint32_t unix_time = Serial.parseInt();
       Serial.println(unix_time);
-      rtc.adjust(DateTime(unix_time));
+      rtc.setEpoch(unix_time);
       compute_next_time();
       Serial.println();
     }
@@ -244,17 +254,22 @@ DataLogger::DataLogger(
 }
 
 
-void DataLogger::setup(void)
+void DataLogger::setup(void *wait_function(void))
 {
+
+  if (wait_function) {
+    _wait_function = wait_function;
+  }
 
   pinMode(good_led_pin, OUTPUT);
   pinMode(bad_led_pin, OUTPUT);
-  pinMode(beeper_pin, OUTPUT);
+  if (beeper_pin) {
+    pinMode(beeper_pin, OUTPUT);
+  }
 
   Serial.begin(230400);
   Serial.println("Coweeta Hydrologic Lab Datalogger");
   _show_prompt = true;
-
 
   // connect to RTC
   Wire.begin();
@@ -263,12 +278,12 @@ void DataLogger::setup(void)
     junk::die("RTC failed");
   }
 
-  pinMode(logger_cs_pin, OUTPUT);
-  if (!SD.begin(logger_cs_pin, 11, 12, 13)) {
+  if (!SD.begin(logger_cs_pin)) {
     junk::die("Data logger card failed, or not present.");
   }
 
   file_number = junk::get_next_file_number();
+
   log_file = junk::set_log_file(file_number, FILE_WRITE);
   log_file.println("# Coweeta log file");
   log_file.flush();
@@ -283,13 +298,15 @@ void DataLogger::setup(void)
     digitalWrite(bad_led_pin, HIGH);
   }
   digitalWrite(bad_led_pin, LOW);
-  for (uint8_t i = 0; i < 100; i++) {
-    delay(1);
-    digitalWrite(beeper_pin, HIGH);
-    delay(1);
-    digitalWrite(beeper_pin, LOW);
-  }
 
+  if (beeper_pin) {
+    for (uint8_t i = 0; i < 100; i++) {
+      delay(1);
+      digitalWrite(beeper_pin, HIGH);
+      delay(1);
+      digitalWrite(beeper_pin, LOW);
+    }
+  }
 }
 
 
@@ -323,7 +340,7 @@ void DataLogger::wait_for_event(void)
     } else if (Serial.available()) {
       process_commands();
     } else {
-      delay(100);
+      _wait_function();
     }
   }
   digitalWrite(good_led_pin, HIGH);

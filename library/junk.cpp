@@ -12,13 +12,18 @@
 
 #include <stdlib.h>
 #include <SPI.h>
-#include <SD.h>
 #include <Wire.h>
-#include "RTClib.h"
+#include <SdFat.h>
+#include <RTCTimer.h>
+#include <Sodaq_DS3231.h>
+#include <Sodaq_PcInt.h>
 
 #include "str_util.h"
 
+extern SdFat SD;
+
 namespace junk {
+
 
 
 void print_root_directory() {
@@ -31,7 +36,10 @@ void print_root_directory() {
       // no more files
       break;
     }
-    Serial.print(entry.name());
+    const int BUF_LEN = 13;
+    char buf[BUF_LEN];
+    const bool okay = entry.getName(buf, BUF_LEN);
+    Serial.print(buf);
     if (entry.isDirectory()) {
       Serial.println("/");
     } else {
@@ -45,23 +53,21 @@ void print_root_directory() {
 }
 
 
-
-static RTC_DS1307 rtc; // define the Real Time Clock object
-
-
-// for the data logging shield, we use digital pin 10 for the SD cs line
-const int logger_cs_pin = 10;
-const int led_pin = 8;
+const int led_pin = 9;
 const int log_interval = 10;
 
 
 void die(const char* error_str) {
   Serial.print("ERROR: ");
   Serial.println(error_str);
-  digitalWrite(led_pin, HIGH);
-  while(1);
-}
+  while(1) {
+      digitalWrite(led_pin, HIGH);
+      delay(500);
+      digitalWrite(led_pin, LOW);
+      delay(500);
+  }
 
+}
 
 
 void new_log_row(const DateTime &now) {
@@ -73,7 +79,7 @@ void new_log_row(const DateTime &now) {
   write_char('-');
   two_digit(now.month());
   write_char('-');
-  two_digit(now.day());
+  two_digit(now.date());
   write_char(' ');
   two_digit(now.hour());
   write_char(':');
@@ -81,7 +87,6 @@ void new_log_row(const DateTime &now) {
   write_char(':');
   two_digit(now.second());
 }
-
 
 
 int get_next_file_number(void) {
@@ -98,6 +103,7 @@ int get_next_file_number(void) {
   die("Ran out of filenames.");
 
 }
+
 
 static File log_file;
 static int file_number = 0;
@@ -117,8 +123,6 @@ File set_log_file(int file_num, int mode) {
 }
 
 
-
-
 int get_int(int min, int max) {
   while (true) {
     const int val = Serial.parseInt();
@@ -131,8 +135,7 @@ int get_int(int min, int max) {
 
 
 uint32_t current_time()  {
-  const DateTime time_stamp = rtc.now();
-  return time_stamp.unixtime();
+  return rtc.now().getEpoch();
 }
 
 

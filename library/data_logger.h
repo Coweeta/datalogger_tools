@@ -1,6 +1,8 @@
 #ifndef Data_logger_h
 #define Data_logger_h
 
+
+
 namespace coweeta {
 
 // This is used exclusively by the EventSchedule structure.
@@ -38,7 +40,7 @@ public:
 
   // The setup() method is called from within the Arduino app's setup()
   // function.
-  void setup(void);
+  void setup(void *wait_function(void) = 0);
 
   // The second phase of initialization, this method is called from the
   // Arduino app's setup() function too.

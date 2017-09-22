@@ -8,9 +8,10 @@
 
 #include <stdlib.h>
 #include <SPI.h>
-#include <SD.h>
+#include <SdFat.h>
 #include <Wire.h>
-#include "RTClib.h"
+ //TEMP!!! #include "RTClib.h"
+#include <Sodaq_DS3231.h>
 
 namespace junk {
 
