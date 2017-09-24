@@ -11,6 +11,7 @@ typedef enum {
   Disabled='d'
 } EventCategory;
 
+
 // This structure is used to define at what frequency events are indended to
 // occur.  A constant array of these structures is passed to the DataLogger
 // object's set_schedule() method.  Rather than hand populate these structures
@@ -34,9 +35,10 @@ typedef struct {
 // It is up to the program developer to ensure that only one instance exists and
 // that it is correctly initialized - bad things are likely to happen otherwise.
 class DataLogger {
+
 public:
   // Constructor takes no arguments.
-  DataLogger(uint8_t good_led_pin=0, uint8_t bad_led_pin=0, uint8_t beeper_pin=0, uint8_t button_pin=0);
+  DataLogger();
 
   // The setup() method is called from within the Arduino app's setup()
   // function.
@@ -98,6 +100,23 @@ public:
 
   void enable_events(uint16_t events);
   void disable_events(uint16_t events);
+
+protected:
+  uint8_t good_led_pin_ = 0;
+  uint8_t bad_led_pin_ = 0;
+  uint8_t beeper_pin_ = 0;
+  uint8_t logger_cs_pin_ = 0;
+
+  const EventSchedule* event_schedule_;
+  uint8_t num_events_;
+
+private:
+  virtual void wait_a_while(void) = 0;
+
+  virtual uint32_t get_unix_time(void) = 0;
+  virtual void set_unix_time(uint32_t seconds) = 0;
+
+  virtual char *write_timestamp(char *buffer, size_t len) = 0;
 
 };
 

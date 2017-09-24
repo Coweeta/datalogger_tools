@@ -254,7 +254,7 @@ DataLogger::DataLogger(
 }
 
 
-void DataLogger::setup(void *wait_function(void))
+void DataLogger::setup()
 {
 
   if (wait_function) {
@@ -340,7 +340,7 @@ void DataLogger::wait_for_event(void)
     } else if (Serial.available()) {
       process_commands();
     } else {
-      _wait_function();
+      wait_a_while();
     }
   }
   digitalWrite(good_led_pin, HIGH);

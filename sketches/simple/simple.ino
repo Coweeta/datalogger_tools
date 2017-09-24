@@ -18,9 +18,14 @@
 // program is big and includes other libraries with clashing variable names.
 using namespace coweeta;
 
+enum {
+  GREEN_LED = 8,  // Pin for the green LED
+  RED_LED = 9
+};  // Pin for the red LED
+
 // Declare our data logger object.  Inside this beastie is hidden all the fiddly
 // functionality like timer and file management. We will set it up later.
-static DataLogger logger;
+static DataLogger logger(GREEN_LED, RED_LED);
 
 // Our simple example involves us reading from a single analog input and logging
 // the raw value found.  Here, we declare the pin we are reading from.
