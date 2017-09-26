@@ -1,7 +1,7 @@
 #ifndef Data_logger_h
 #define Data_logger_h
 
-
+#include "Arduino.h"
 
 namespace coweeta {
 
@@ -42,7 +42,7 @@ public:
 
   // The setup() method is called from within the Arduino app's setup()
   // function.
-  void setup(void *wait_function(void) = 0);
+  void setup(void);
 
   // The second phase of initialization, this method is called from the
   // Arduino app's setup() function too.

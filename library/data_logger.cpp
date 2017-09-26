@@ -21,12 +21,6 @@ namespace coweeta {
 enum {WAITING, FILE_LOG, TERM_LOG};
 
 
-static void default_wait_function(void)
-{
-  delay(100);
-}
-
-
 static const EventSchedule* _schedule;
 static uint8_t _num_events;
 static uint32_t _next_time;
@@ -36,16 +30,9 @@ static uint16_t _triggered_events;
 static uint8_t _state;
 static File log_file;
 static int file_number = 0;
- //TEMP!!! static RTC_DS1307 rtc; // define the Real Time Clock object
-static int logger_cs_pin = 12;
-static int bad_led_pin = 3;
-static int good_led_pin = 4;
-static int beeper_pin = 0;
-static int button_pin = 0;
 static File _download_file;
 static bool _show_prompt;
 static uint16_t _event_enabled = 0xFFFF;
-static void (*_wait_function)(void) = default_wait_function;
 
 
 static uint32_t next_time_for_event(const EventSchedule* schedule)
@@ -97,6 +84,8 @@ static void send_file(const char *filename)
 {
   _download_file = SD.open(filename, FILE_READ);
   if (!_download_file) {
+    Serial.print(filename);
+    junk::die("Can't open file");
     return;
   }
 
@@ -232,42 +221,21 @@ static void process_commands(void)
 }
 
 
-DataLogger::DataLogger(
-  uint8_t good_led_pin_num=0,
-  uint8_t bad_led_pin_num=0,
-  uint8_t beeper_pin_num=0,
-  uint8_t button_pin_num=0
-)
+DataLogger::DataLogger()
 {
-  if (good_led_pin_num) {
-    good_led_pin = good_led_pin_num;
-  }
-  if (bad_led_pin_num) {
-    bad_led_pin = bad_led_pin_num;
-  }
-  if (beeper_pin_num) {
-    beeper_pin = beeper_pin_num;
-  }
-  if (button_pin_num) {
-    button_pin = button_pin_num;
-  }
 }
 
 
 void DataLogger::setup()
 {
 
-  if (wait_function) {
-    _wait_function = wait_function;
+  pinMode(good_led_pin_, OUTPUT);
+  pinMode(bad_led_pin_, OUTPUT);
+  if (beeper_pin_) {
+    pinMode(beeper_pin_, OUTPUT);
   }
 
-  pinMode(good_led_pin, OUTPUT);
-  pinMode(bad_led_pin, OUTPUT);
-  if (beeper_pin) {
-    pinMode(beeper_pin, OUTPUT);
-  }
-
-  Serial.begin(230400);
+  Serial.begin(57600);
   Serial.println("Coweeta Hydrologic Lab Datalogger");
   _show_prompt = true;
 
@@ -278,7 +246,7 @@ void DataLogger::setup()
     junk::die("RTC failed");
   }
 
-  if (!SD.begin(logger_cs_pin)) {
+  if (!SD.begin(logger_cs_pin_)) {
     junk::die("Data logger card failed, or not present.");
   }
 
@@ -288,23 +256,23 @@ void DataLogger::setup()
   log_file.println("# Coweeta log file");
   log_file.flush();
 
-  digitalWrite(bad_led_pin, HIGH);
+  digitalWrite(bad_led_pin_, HIGH);
   for (uint8_t i = 0; i < 8; i++) {
     delay(50);
-    digitalWrite(good_led_pin, HIGH);
-    digitalWrite(bad_led_pin, LOW);
+    digitalWrite(good_led_pin_, HIGH);
+    digitalWrite(bad_led_pin_, LOW);
     delay(50);
-    digitalWrite(good_led_pin, LOW);
-    digitalWrite(bad_led_pin, HIGH);
+    digitalWrite(good_led_pin_, LOW);
+    digitalWrite(bad_led_pin_, HIGH);
   }
-  digitalWrite(bad_led_pin, LOW);
+  digitalWrite(bad_led_pin_, LOW);
 
-  if (beeper_pin) {
+  if (beeper_pin_) {
     for (uint8_t i = 0; i < 100; i++) {
       delay(1);
-      digitalWrite(beeper_pin, HIGH);
+      digitalWrite(beeper_pin_, HIGH);
       delay(1);
-      digitalWrite(beeper_pin, LOW);
+      digitalWrite(beeper_pin_, LOW);
     }
   }
 }
@@ -326,7 +294,7 @@ void DataLogger::wait_for_event(void)
 {
 
   _now = junk::current_time();
-  digitalWrite(good_led_pin, LOW);
+  digitalWrite(good_led_pin_, LOW);
   _state = WAITING;
   compute_next_time();
   while (_state == WAITING) {
@@ -343,7 +311,7 @@ void DataLogger::wait_for_event(void)
       wait_a_while();
     }
   }
-  digitalWrite(good_led_pin, HIGH);
+  digitalWrite(good_led_pin_, HIGH);
 }
 
 

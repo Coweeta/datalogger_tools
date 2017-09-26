@@ -3,10 +3,15 @@
 
 #include "data_logger.h"
 
-class MayflyDataLogger: public DataLogger {
+namespace coweeta
+{
+
+class MayflyDataLogger : public DataLogger
+{
   public:
     MayflyDataLogger();
     void setup(void);
+    float rtc_temperature(void);
 
   private:
     void wait_a_while(void);
@@ -15,6 +20,8 @@ class MayflyDataLogger: public DataLogger {
     void set_unix_time(uint32_t);
 
     char *write_timestamp(char *buffer, size_t len);
-}
+};
+
+} // namespace coweeta
 
 #endif  // MAYFLY_DATA_LOGGER_H_

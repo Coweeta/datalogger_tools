@@ -1,8 +1,16 @@
 #include "mayfly.h"
 
+#include <avr/sleep.h>
 #include <RTCTimer.h>
 #include <Sodaq_DS3231.h>
 #include <Sodaq_PcInt.h>
+/// USB comms needs the D21 (PCINT21) button to be pressed to wake up the micro.
+/// Following this being pressed - or any USB traffic - the controller avoids
+/// power-down for a minute.
+///
+
+namespace coweeta
+{
 
 enum {
   GREEN_LED_PIN = 8,
@@ -13,26 +21,30 @@ enum {
 };
 
 
-
-MayflyDataLogger::MayflyDataLogger():
-  good_led_pin_(GREEN_LED_PIN),
-  bad_led_pin_(RED_LED_PIN),
-  logger_cs_pin_(SD_CARD_SS_PIN)
+MayflyDataLogger::MayflyDataLogger()
 {
-  DataLogger::DataLogger();
+  good_led_pin_ = GREEN_LED_PIN;
+  bad_led_pin_ = RED_LED_PIN;
+  logger_cs_pin_ = SD_CARD_SS_PIN;
 }
 
 
-MayflyDataLogger::setup()
+static void wakeISR(void)
+{
+  //Leave this blank
+}
+
+
+void MayflyDataLogger::setup(void)
 {
   pinMode(RTC_PIN, INPUT_PULLUP);
+
   PcInt::attachInterrupt(RTC_PIN, wakeISR);
 
   //Setup the RTC in interrupt mode
-  rtc.enableInterrupts(RTC_INT_PERIOD);
+  rtc.enableInterrupts(EverySecond);
 
-  //Set the sleep mode
-  set_sleep_mode(SLEEP_MODE_PWR_DOWN);
+  set_sleep_mode(SLEEP_MODE_IDLE);
 
   DataLogger::setup();
 
@@ -68,11 +80,8 @@ void MayflyDataLogger::wait_a_while(void)
   sleep_cpu();
   sleep_disable();
 
-  // Enable ADC
+  // Re-enable ADC
   ADCSRA |= _BV(ADEN);
-
-  // This method handles any sensor specific wake setup
-  sensorsWake();
 
 }
 
@@ -84,77 +93,10 @@ char *MayflyDataLogger::write_timestamp(char *buffer, size_t len)
 }
 
 
-#if 0
 
-//
-// Bits copied from https://github.com/EnviroDIY/EnviroDIY_Mayfly_Logger/blob/master/examples/logging_to_EnviroDIY/logging_to_EnviroDIY.ino
-//
-
-#include <Arduino.h>
-#include <Wire.h>
-#include <avr/sleep.h>
-#include <SdFat.h>
-#include <RTCTimer.h>
-#include <Sodaq_DS3231.h>
-#include <Sodaq_PcInt.h>
-
-
-int RTC_PIN = A7;  // RTC Interrupt pin
-
-static void wake_isr()
+float MayflyDataLogger::rtc_temperature(void)
 {
-  //Leave this blank
+  return rtc.getTemperature();
 }
 
-
-void set_up_rtc_interrupt(void)
-{
-  // Sets up the sleep mode (used on device wake-up)
-  pinMode(RTC_PIN, INPUT_PULLUP);
-  PcInt::attachInterrupt(RTC_PIN, wake_isr);
-
-  //Setup the RTC in interrupt mode
-  rtc.enableInterrupts(RTC_INT_PERIOD);
-
-  //Set the sleep mode
-  set_sleep_mode(SLEEP_MODE_PWR_DOWN);
-}
-
-
-}
-
-
-void sleep_until_external_event(void)
-{
-}
-
-
-
-// Puts the system to sleep to conserve battery life.
-void systemSleep()
-{
-
-  // Wait until the serial ports have finished transmitting
-  Serial.flush();
-
-  // The next timed interrupt will not be sent until this is cleared
-  rtc.clearINTStatus();
-
-  // Disable ADC
-  ADCSRA &= ~_BV(ADEN);
-
-  // Sleep time
-  noInterrupts();
-  sleep_enable();
-  interrupts();
-  sleep_cpu();
-  sleep_disable();
-
-  // Enable ADC
-  ADCSRA |= _BV(ADEN);
-
-  // This method handles any sensor specific wake setup
-  sensorsWake();
-}
-
-#endif
+} // namespace coweeta
