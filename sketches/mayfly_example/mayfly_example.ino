@@ -18,14 +18,6 @@ static const EventSchedule schedule[NUM_EVENT_TYPES] = {
 static MayflyDataLogger logger;
 static Adafruit_ADS1115 adc;  // Our 16 bit ADC
 
-enum {
-  GREEN_LED_PIN = 8,
-  RED_LED_PIN = 9,
-  SD_CARD_SS_PIN = 12,
-  RTC_PIN = A7,
-  BATTERY_SENSE_PIN = A6
-};
-
 
 void setup() {
   logger.setup();
