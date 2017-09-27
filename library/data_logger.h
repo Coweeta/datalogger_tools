@@ -113,10 +113,11 @@ protected:
 private:
   virtual void wait_a_while(void) = 0;
 
+public:   //TEMP!!!
   virtual uint32_t get_unix_time(void) = 0;
   virtual void set_unix_time(uint32_t seconds) = 0;
 
-  virtual char *write_timestamp(char *buffer, size_t len) = 0;
+  virtual void write_timestamp(Print &stream) = 0;
 
 };
 

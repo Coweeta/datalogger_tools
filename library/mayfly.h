@@ -19,7 +19,7 @@ class MayflyDataLogger : public DataLogger
     uint32_t get_unix_time(void);
     void set_unix_time(uint32_t);
 
-    char *write_timestamp(char *buffer, size_t len);
+    void write_timestamp(Print &stream);
 };
 
 } // namespace coweeta

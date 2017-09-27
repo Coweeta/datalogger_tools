@@ -18,7 +18,6 @@
 #include <Sodaq_DS3231.h>
 #include <Sodaq_PcInt.h>
 
-#include "str_util.h"
 
 extern SdFat SD;
 
@@ -67,25 +66,6 @@ void die(const char* error_str) {
       delay(500);
   }
 
-}
-
-
-void new_log_row(const DateTime &now) {
-
-  new_row();
-  const int year = now.year();
-
-  write_uint(now.year());
-  write_char('-');
-  two_digit(now.month());
-  write_char('-');
-  two_digit(now.date());
-  write_char(' ');
-  two_digit(now.hour());
-  write_char(':');
-  two_digit(now.minute());
-  write_char(':');
-  two_digit(now.second());
 }
 
 

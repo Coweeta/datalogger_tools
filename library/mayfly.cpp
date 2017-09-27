@@ -85,11 +85,70 @@ void MayflyDataLogger::wait_a_while(void)
 
 }
 
-
-char *MayflyDataLogger::write_timestamp(char *buffer, size_t len)
+class DateTimeStringifier
 {
-  *buffer = 'Z';
-  return buffer + 1;
+public:
+  DateTimeStringifier(DateTime date_time, char *buffer):
+    cursor_(buffer),
+    date_time_(date_time)
+  {
+  }
+
+  char *run(void)
+  {
+    const uint16_t year = date_time_.year();
+    add_two_digit(year / 100);
+    add_two_digit(year % 100);
+    add_char('-');
+    add_two_digit(date_time_.month());
+    add_char('-');
+    add_two_digit(date_time_.date());
+    add_char(' ');
+    add_two_digit(date_time_.hour());
+    add_char(':');
+    add_two_digit(date_time_.minute());
+    add_char(':');
+    add_two_digit(date_time_.second());
+    add_char('\0');
+    return cursor_;
+  }
+
+private:
+  char *cursor_;
+  DateTime date_time_;
+
+  void add_two_digit(int n)
+  {
+    add_char((n / 10) + '0');
+    add_char((n % 10) + '0');
+  }
+
+  void add_char(char ch)
+  {
+    *(cursor_++) = ch;
+  }
+};
+
+static void print_two_digit(Print &stream, uint8_t value)
+{
+    stream.print(char((value / 10) + '0'));
+    stream.print(char((value % 10) + '0'));
+}
+
+void MayflyDataLogger::write_timestamp(Print &stream)
+{
+  const DateTime timestamp = rtc.now();
+  stream.print(timestamp.year());
+  stream.print('-');
+  print_two_digit(stream, timestamp.month());
+  stream.print('-');
+  print_two_digit(stream, timestamp.date());
+  stream.print(' ');
+  print_two_digit(stream, timestamp.hour());
+  stream.print(':');
+  print_two_digit(stream, timestamp.minute());
+  stream.print(':');
+  print_two_digit(stream, timestamp.second());
 }
 
 

@@ -8,10 +8,13 @@
 
 
 #include "data_logger.h"
-#include "junk.h"
-#include "str_util.h"
+#include "char_stream.h"
 
-char char_buf[256];   //TEMP!!!  global for now: used by str_util.cpp
+#include "junk.h"
+
+static const int BUF_SIZE = 250;
+char char_buf[BUF_SIZE];
+CharStream char_stream(char_buf, BUF_SIZE);
 
 SdFat SD;  // The SD initialization
 
@@ -34,6 +37,7 @@ static File _download_file;
 static bool _show_prompt;
 static uint16_t _event_enabled = 0xFFFF;
 
+static DataLogger *_logger;
 
 static uint32_t next_time_for_event(const EventSchedule* schedule)
 {
@@ -63,23 +67,6 @@ static uint32_t compute_next_time(void)
 }
 
 
-static void output_any_line()
-{
-  if (!empty()) {
-    const char *line = get_row();
-
-    if (_state == FILE_LOG && log_file) {
-      log_file.println(line);
-      log_file.flush();
-    } else if (_state == TERM_LOG) {
-      Serial.println(line);
-      _show_prompt = true;
-    }
-
-  }
-}
-
-
 static void send_file(const char *filename)
 {
   _download_file = SD.open(filename, FILE_READ);
@@ -93,24 +80,16 @@ static void send_file(const char *filename)
   while(true) {
     if (Serial.available()) {
       Serial.read();
-      Serial.println("XXX");
+      Serial.println("XXX");     //TEMP!!!
       break;
     }
     if (not _download_file.available()) {
       break;
     }
-    const uint8_t bytes_read = _download_file.readBytes(char_buf, 128);
+    const uint8_t bytes_read = _download_file.readBytes(char_buf, BUF_SIZE);
     Serial.write(char_buf, bytes_read);
   }
   _download_file.close();
-}
-
-
-static const char *read_serial_string_to_buf(void)
-{
-  const int bytes_read = Serial.readBytesUntil('|', char_buf, 128 - 1);
-  char_buf[bytes_read] = '\0';
-  return char_buf;
 }
 
 
@@ -136,7 +115,10 @@ static void process_commands(void)
 
   case 'G':
     {
-      const char *filename = read_serial_string_to_buf();
+      const size_t SIZE = 30;
+      char filename[SIZE];
+      const int bytes_read = Serial.readBytesUntil('|', filename, SIZE - 1);
+      filename[bytes_read] = '\0';
       send_file(filename);
     }
     break;
@@ -149,7 +131,10 @@ static void process_commands(void)
   case 'R':
     // remove as part of download_file()
     {
-      const char *filename = read_serial_string_to_buf();
+      const size_t SIZE = 30;
+      char filename[SIZE];
+      const int bytes_read = Serial.readBytesUntil('|', filename, SIZE - 1);
+      filename[bytes_read] = '\0';
       SD.remove(filename);
       Serial.println();
     }
@@ -174,7 +159,7 @@ static void process_commands(void)
       // set time for sync_time()
       const uint32_t unix_time = Serial.parseInt();
       Serial.println(unix_time);
-      rtc.setEpoch(unix_time);
+      _logger->set_unix_time(unix_time);
       compute_next_time();
       Serial.println();
     }
@@ -221,8 +206,10 @@ static void process_commands(void)
 }
 
 
+ //TEMP!!!
 DataLogger::DataLogger()
 {
+  _logger = this;
 }
 
 
@@ -235,8 +222,9 @@ void DataLogger::setup()
     pinMode(beeper_pin_, OUTPUT);
   }
 
-  Serial.begin(57600);
+  Serial.begin(57600);  //TODO make adjustable
   Serial.println("Coweeta Hydrologic Lab Datalogger");
+
   _show_prompt = true;
 
   // connect to RTC
@@ -253,7 +241,7 @@ void DataLogger::setup()
   file_number = junk::get_next_file_number();
 
   log_file = junk::set_log_file(file_number, FILE_WRITE);
-  log_file.println("# Coweeta log file");
+  log_file.println("# Coweeta log file");   //TODO make variable and delay file write.
   log_file.flush();
 
   digitalWrite(bad_led_pin_, HIGH);
@@ -293,12 +281,12 @@ void DataLogger::set_schedule(const EventSchedule *schedule, uint8_t num_events)
 void DataLogger::wait_for_event(void)
 {
 
-  _now = junk::current_time();
+  _now = _logger->get_unix_time();
   digitalWrite(good_led_pin_, LOW);
   _state = WAITING;
   compute_next_time();
   while (_state == WAITING) {
-    _now = junk::current_time();
+    _now = _logger->get_unix_time();
     if (_show_prompt) {
       Serial.print(">");
       _show_prompt = false;
@@ -321,73 +309,38 @@ bool DataLogger::is_event(uint16_t event)
 }
 
 
-// This is used inside events.
-//
-//
-// void DataLogger::wait_for_division(int division)
-// {
-//     _state = WAITING;
-//     compute_next_time();
-//     while (_state == WAITING) {
-//         _now = junk::current_time();
-//         if (_now == _next_time) {
-//             _state = FILE_LOG;
-//         } else if (Serial.available()) {
-//             process_commands();
-//         } else {
-//             delay(100);
-//         }
-//     }
-//
-// }
-
-
 void DataLogger::new_log_line(void)
 {
-  junk::new_log_row(_now);
+  char_stream.reset();
+  write_timestamp(char_stream);
 }
 
 
 void DataLogger::log_string(const char *string)
 {
-  write_char(',');
-  for (const char *ch = string; *ch != '\0'; ch++) {
-    write_char(*ch);
-  }
+  char_stream.print(',');
+  char_stream.print(string);
 }
 
 
 void DataLogger::log_int(int value)
 {
-  write_char(',');
-  write_sint(value);
+  char_stream.print(',');
+  char_stream.print(value);
 }
 
 
 void DataLogger::log_float(double value, uint8_t dec_places)
 {
-  write_char(',');
-  if (value < 0.0) {
-    write_char('-');
-    value = -value;
-  }
-  const int int_part = (int)value;
-  double dec_part = value - int_part;
-  write_sint(int_part);
-  write_char('.');
-  for (uint8_t i = 0; i < dec_places; i++) {
-    dec_part = dec_part * 10.0;
-    const uint8_t digit = (int)dec_part;
-    dec_part -= digit;
-    write_uint(digit);
-  }
+  char_stream.print(',');
+  char_stream.print(value, dec_places);
 }
 
 
 void DataLogger::skip_entries(uint8_t count)
 {
   for (uint8_t i = 0; i < count; i++) {
-    write_char(',');
+    char_stream.print(',');
   }
 
 }
@@ -395,7 +348,20 @@ void DataLogger::skip_entries(uint8_t count)
 
 void DataLogger::end_log_line(void)
 {
-  output_any_line();
+  if (char_stream.bytes_written()) {
+
+    if (_state == FILE_LOG && log_file) {
+      char_stream.dump(log_file);
+      log_file.println("");
+      log_file.flush();
+    } else if (_state == TERM_LOG) {
+      char_stream.dump(Serial);
+      Serial.println("");
+      _show_prompt = true;
+    }
+
+  }
+
 }
 
 
