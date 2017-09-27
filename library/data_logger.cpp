@@ -222,7 +222,7 @@ void DataLogger::setup()
     pinMode(beeper_pin_, OUTPUT);
   }
 
-  Serial.begin(57600);  //TODO make adjustable
+  Serial.begin(usb_usart_baud_rate_);  //TODO make adjustable
   Serial.println("Coweeta Hydrologic Lab Datalogger");
 
   _show_prompt = true;

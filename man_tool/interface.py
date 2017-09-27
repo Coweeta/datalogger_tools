@@ -15,7 +15,7 @@ class DataLoggerInterface:
 
         deviceName would be something like "/dev/ttyUSB0"
         """
-        self.ser = serial.Serial(device_name, 57600, xonxoff=1, rtscts=0, timeout=0.2)
+        self.ser = serial.Serial(device_name, 250000, xonxoff=1, rtscts=0, timeout=0.2)
         self.debug = debug
         self._download_file = None
         self._download_filename = None

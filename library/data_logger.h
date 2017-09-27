@@ -106,6 +106,7 @@ protected:
   uint8_t bad_led_pin_ = 0;
   uint8_t beeper_pin_ = 0;
   uint8_t logger_cs_pin_ = 0;
+  uint32_t usb_usart_baud_rate_ = 250000;
 
   const EventSchedule* event_schedule_;
   uint8_t num_events_;
