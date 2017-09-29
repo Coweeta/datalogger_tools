@@ -1,27 +1,14 @@
-#if ARDUINO >= 100
-  #include "Arduino.h"
-#else
-  #include "WProgram.h"
-  #include "pins_arduino.h"
-  #include "WConstants.h"
-#endif
-
+#include "Arduino.h"
 
 #include "data_logger.h"
 #include "char_stream.h"
-
+#include "command_parser.h"
 #include "junk.h"
-
-static const int BUF_SIZE = 250;
-char char_buf[BUF_SIZE];
-CharStream char_stream(char_buf, BUF_SIZE);
 
 SdFat SD;  // The SD initialization
 
 namespace coweeta {
 
-
-enum {WAITING, FILE_LOG, TERM_LOG};
 
 
 static const EventSchedule* _schedule;
@@ -30,12 +17,25 @@ static uint32_t _next_time;
 static uint32_t _now;
 static bool _to_file;
 static uint16_t _triggered_events;
-static uint8_t _state;
+static uint16_t _forced_events;
 static File log_file;
 static int file_number = 0;
 static File _download_file;
-static bool _show_prompt;
 static uint16_t _event_enabled = 0xFFFF;
+
+static uint8_t good_led_pin_ = 0;
+static uint8_t bad_led_pin_ = 0;
+static uint8_t beeper_pin_ = 0;
+static uint8_t logger_cs_pin_ = 0;
+static uint32_t usb_usart_baud_rate_ = 0;
+
+static bool log_to_file_;
+static bool log_to_term_;
+
+static const int BUF_SIZE = 250;
+char char_buf[BUF_SIZE];
+CharStream char_stream(char_buf, BUF_SIZE);
+
 
 static DataLogger *_logger;
 
@@ -48,7 +48,7 @@ static uint32_t next_time_for_event(const EventSchedule* schedule)
 }
 
 
-static uint32_t compute_next_time(void)
+static uint32_t compute_next_time()
 {
   _next_time = 0xFFFFFFFF;
   _triggered_events = 0x0000;
@@ -93,123 +93,210 @@ static void send_file(const char *filename)
 }
 
 
+static void report_error(const CommandParser &parser)
+{
+  Serial.print("Xp");
+  Serial.println(parser.error());
+}
+
+
+static bool set_event_bits(CommandParser &parser, uint16_t &event_bits)
+{
+  // trigger_event()
+  const uint16_t max_event_val = (1 << _num_events) - 1;
+  const uint16_t events = parser.get_uint32(0, max_event_val);
+  const bool okay = parser.check_complete();
+  if (!okay) {
+    report_error(parser);
+    return false;
+  }
+  event_bits = events;
+  return true;
+}
+
+
+static void manual_event_trigger(CommandParser &parser)
+{
+  if (set_event_bits(parser, _forced_events)) {
+    compute_next_time();
+    Serial.print("e\n");
+  }
+}
+
+
+static void event_enabling(CommandParser &parser)
+{
+  if (set_event_bits(parser, _event_enabled)) {
+    compute_next_time();
+    Serial.print("E\n");
+  }
+}
+
+
+static void file_transfer(CommandParser &parser)
+{
+  const char *filename = parser.get_word();
+  const bool okay = parser.check_complete();
+  if (!okay) {
+    report_error(parser);
+    return;
+  }
+  send_file(filename);
+}
+
+
+static void file_delete(CommandParser &parser)
+{
+  const char *filename = parser.get_word();
+  const bool okay = parser.check_complete();
+  if (!okay) {
+    report_error(parser);
+    return;
+  }
+  SD.remove(filename);
+  Serial.println("R");
+}
+
+
 static void process_commands(void)
 {
-  _show_prompt = true; // by default
-  const int command = Serial.read();
+  const size_t BUF_SIZE = 100;
+  char buffer[BUF_SIZE];
+  const size_t size = Serial.readBytes(buffer, BUF_SIZE);
+
+  CommandParser parser = CommandParser(buffer, size);
+  const int command = parser.get_char();
+
+  if (parser.error()) {
+    report_error(parser);
+    return;
+  }
+
+  switch(command) {
+    case 'e':
+      manual_event_trigger(parser);
+      return;
+
+    case 'E':
+      event_enabling(parser);
+      return;
+
+    case 'G':
+      file_transfer(parser);
+      return;
+
+    case 'o':
+      {
+        const uint8_t mode = parser.get_uint32(0, 3);
+        const bool okay = parser.check_complete();
+        if (!okay) {
+          report_error(parser);
+          return;
+        }
+        log_to_term_ = mode == 1;
+        Serial.println("o");
+      }
+      return;
+
+    case 'R':
+      file_delete(parser);
+      return;
+
+    case 'N':
+      {
+        // new_active_file() switch to new file
+        const uint8_t file_num = parser.get_uint32(0, 99);
+        const bool okay = parser.check_complete();
+        if (!okay) {
+          report_error(parser);
+          return;
+        }
+        log_file.close();
+        log_file = junk::set_log_file(file_num, FILE_WRITE);
+        log_file.println("# Coweeta log file");
+        log_file.flush();
+
+        Serial.println('N');
+      }
+      return;
+
+    case 's':
+      {
+        // set time for sync_time()
+        const int32_t seconds = parser.get_int32(0, 0x7FFFFFFF);
+        const bool okay = parser.check_complete();
+        if (!okay) {
+          report_error(parser);
+          return;
+        }
+        _logger->set_unix_time(seconds);
+        compute_next_time();
+        Serial.println('s');
+      }
+      return;
+
+    default:
+      break;
+  }
+
+  // The remaining commands take no args.
+  const bool okay = parser.check_complete();
+  if (!okay) {
+    report_error(parser);
+    return;
+  }
+
   switch(command) {
   case 'v':
-    {
-      // protocol version
-      Serial.println("COW0.0");
-    }
-    break;
-  case 'e':
-    {
-      // trigger_event()
-      _triggered_events = junk::get_int(0, (1 << _num_events) - 1);
-      _state = TERM_LOG;
-      _show_prompt = false;
-    }
-    break;
-
-  case 'G':
-    {
-      const size_t SIZE = 30;
-      char filename[SIZE];
-      const int bytes_read = Serial.readBytesUntil('|', filename, SIZE - 1);
-      filename[bytes_read] = '\0';
-      send_file(filename);
-    }
-    break;
+    // protocol version
+    Serial.println("v COW0.0");
+    return;
 
   case 'A':
     // get_active_file_num()
+    Serial.print("A");
     Serial.println(file_number, DEC);
-    break;
-
-  case 'R':
-    // remove as part of download_file()
-    {
-      const size_t SIZE = 30;
-      char filename[SIZE];
-      const int bytes_read = Serial.readBytesUntil('|', filename, SIZE - 1);
-      filename[bytes_read] = '\0';
-      SD.remove(filename);
-      Serial.println();
-    }
-    break;
-    // log_file.close();
-
-  case 'N':
-    {
-      // new_active_file() switch to new file
-      const int file_num = junk::get_int(0, 99);
-      log_file.close();
-      log_file = junk::set_log_file(file_num, FILE_WRITE);
-      log_file.println("# Coweeta log file");
-      log_file.flush();
-
-      Serial.println();
-    }
-    break;
-
-  case 's':
-    {
-      // set time for sync_time()
-      const uint32_t unix_time = Serial.parseInt();
-      Serial.println(unix_time);
-      _logger->set_unix_time(unix_time);
-      compute_next_time();
-      Serial.println();
-    }
-    break;
-
-  case 't':
-    {
-      // get time for sync_time()
-      Serial.println(_now, DEC);
-    }
-    break;
-
-  case 'L':
-    // list_files()
-    junk::print_root_directory();
     break;
 
   case 'n':
     // list event names
+    Serial.print("n ");
     for (uint8_t i = 0; i < _num_events; i++) {
-      Serial.println(_schedule[i].name);
+      Serial.print(_schedule[i].name);
+      Serial.print(" ");
     }
-    break;
+    Serial.print("\n");
+    return;
+
+  case 't':
+    // get time for sync_time()
+    Serial.print("t");
+    Serial.println(_now, DEC);
+    return;
+
+  case 'L':
+    // list_files()
+    junk::print_root_directory();
+    return;
 
   case 'w':
     // report wait for next event
     Serial.println(_next_time - _now);
     Serial.println(_triggered_events);
     Serial.println(_event_enabled);
-    break;
-
-  case 'E':
-    // enable schedule for events
-    _event_enabled = junk::get_int(0, (1 << _num_events) - 1);
-    compute_next_time();
-    break;
+    return;
 
   default:
-    Serial.print("?");
-    Serial.print(command);
-    Serial.println("?");
+    Serial.println("Ec?");
+    return;
 
   }
 }
 
 
- //TEMP!!!
 DataLogger::DataLogger()
 {
-  _logger = this;
+   _logger = this;
 }
 
 
@@ -223,9 +310,7 @@ void DataLogger::setup()
   }
 
   Serial.begin(usb_usart_baud_rate_);  //TODO make adjustable
-  Serial.println("Coweeta Hydrologic Lab Datalogger");
-
-  _show_prompt = true;
+  Serial.println("# Coweeta Hydrologic Lab Datalogger");
 
   // connect to RTC
   Wire.begin();
@@ -243,6 +328,11 @@ void DataLogger::setup()
   log_file = junk::set_log_file(file_number, FILE_WRITE);
   log_file.println("# Coweeta log file");   //TODO make variable and delay file write.
   log_file.flush();
+
+  log_to_file_ = true;
+  log_to_term_ = false;
+
+  _forced_events = 0x0000;
 
   digitalWrite(bad_led_pin_, HIGH);
   for (uint8_t i = 0; i < 8; i++) {
@@ -283,21 +373,18 @@ void DataLogger::wait_for_event(void)
 
   _now = _logger->get_unix_time();
   digitalWrite(good_led_pin_, LOW);
-  _state = WAITING;
   compute_next_time();
-  while (_state == WAITING) {
-    _now = _logger->get_unix_time();
-    if (_show_prompt) {
-      Serial.print(">");
-      _show_prompt = false;
-    }
-    if (_now == _next_time) {
-      _state = FILE_LOG;
-    } else if (Serial.available()) {
+  while ((_now < _next_time) && !_forced_events) {
+    if (Serial.available()) {
       process_commands();
     } else {
       wait_a_while();
     }
+    _now = _logger->get_unix_time();
+  }
+  if (_forced_events) {
+    _triggered_events = _forced_events;
+    _forced_events = 0x0000;
   }
   digitalWrite(good_led_pin_, HIGH);
 }
@@ -350,14 +437,15 @@ void DataLogger::end_log_line(void)
 {
   if (char_stream.bytes_written()) {
 
-    if (_state == FILE_LOG && log_file) {
+    if (log_to_file_) {
       char_stream.dump(log_file);
       log_file.println("");
       log_file.flush();
-    } else if (_state == TERM_LOG) {
+    }
+    if (log_to_term_) {
+      Serial.print("!");
       char_stream.dump(Serial);
       Serial.println("");
-      _show_prompt = true;
     }
 
   }
@@ -365,20 +453,44 @@ void DataLogger::end_log_line(void)
 }
 
 
+ //TEMP!!! remove??
 void DataLogger::get_time(int *hour, int *minute, int *second)
 {
 
 }
+
 
 void DataLogger::enable_events(uint16_t events)
 {
   _event_enabled |= events;
 }
 
+
 void DataLogger::disable_events(uint16_t events)
 {
   _event_enabled &= ~events;
 }
+
+
+void DataLogger::set_device_pins(uint8_t good_led, uint8_t bad_led, uint8_t sd_card)
+{
+  good_led_pin_ = good_led;
+  bad_led_pin_ = bad_led;
+  logger_cs_pin_ = sd_card;
+}
+
+
+void DataLogger::set_beeper_pin(uint8_t pin)
+{
+  beeper_pin_ = pin;
+}
+
+
+void DataLogger::set_usb_baud_rate(uint32_t rate)
+{
+  usb_usart_baud_rate_ = rate;
+}
+
 
 
 }  // namespace coweeta

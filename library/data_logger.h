@@ -35,7 +35,6 @@ typedef struct {
 // It is up to the program developer to ensure that only one instance exists and
 // that it is correctly initialized - bad things are likely to happen otherwise.
 class DataLogger {
-
 public:
   // Constructor takes no arguments.
   DataLogger();
@@ -102,22 +101,14 @@ public:
   void disable_events(uint16_t events);
 
 protected:
-  uint8_t good_led_pin_ = 0;
-  uint8_t bad_led_pin_ = 0;
-  uint8_t beeper_pin_ = 0;
-  uint8_t logger_cs_pin_ = 0;
-  uint32_t usb_usart_baud_rate_ = 250000;
+  void set_device_pins(uint8_t good_led, uint8_t bad_led, uint8_t sd_card);
+  void set_beeper_pin(uint8_t pin);
+  void set_usb_baud_rate(uint32_t rate);
 
-  const EventSchedule* event_schedule_;
-  uint8_t num_events_;
-
-private:
+public:
   virtual void wait_a_while(void) = 0;
-
-public:   //TEMP!!!
   virtual uint32_t get_unix_time(void) = 0;
   virtual void set_unix_time(uint32_t seconds) = 0;
-
   virtual void write_timestamp(Print &stream) = 0;
 
 };

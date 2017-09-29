@@ -24,9 +24,8 @@ enum {
 
 MayflyDataLogger::MayflyDataLogger()
 {
-  good_led_pin_ = GREEN_LED_PIN;
-  bad_led_pin_ = RED_LED_PIN;
-  logger_cs_pin_ = SD_CARD_SS_PIN;
+  set_device_pins(GREEN_LED_PIN, RED_LED_PIN, SD_CARD_SS_PIN);
+  set_usb_baud_rate(250000);
 }
 
 

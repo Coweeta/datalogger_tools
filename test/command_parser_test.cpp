@@ -52,7 +52,7 @@ int main() {
   std::cout << "CMD = '" << char(cp.get_char()) << "'\n";
   std::cout << "STAT = (" << int(cp.status()) << ")\n\n";
 
-  std::cout << "WORD = \"" << cp.get_blob() << "\"\n";
+  std::cout << "WORD = \"" << cp.get_word() << "\"\n";
   std::cout << "STAT = (" << int(cp.status()) << ")\n\n";
 
   std::cout << "NUM = " << cp.get_uint32(10000, 0xFFFFFFFF) << "\n";
@@ -70,7 +70,7 @@ int main() {
   std::cout << "NUM = " << cp.get_int32(-1000, 1000) << "\n";
   std::cout << "STAT = (" << int(cp.status()) << ")\n\n";
 
-  std::cout << "WORD = \"" << cp.get_blob() << "\"\n";
+  std::cout << "WORD = \"" << cp.get_word() << "\"\n";
   std::cout << "STAT = (" << int(cp.status()) << ")\n\n";
 
   std::cout << "WORD = \"" << cp.get_string() << "\"\n";
