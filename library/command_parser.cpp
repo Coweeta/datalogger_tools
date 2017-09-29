@@ -3,7 +3,6 @@
 #include "command_parser.h"
 
 
-
 /// Check the next char without advancing past it.
 char CommandParser::peek() {
   return buffer_[cursor_];
@@ -50,6 +49,7 @@ uint32_t CommandParser::get_int(void)
   return val;
 }
 
+
 bool CommandParser::prepare(bool skip_space)
 {
   if (error_) {
@@ -95,6 +95,21 @@ CommandParser::CommandParser(char * buffer, uint8_t size) :
 }
 
 
+bool CommandParser::check_complete()
+{
+  if (error_) {
+    return false;
+  }
+  skip_spaces();
+  if (cursor_ < size_) {
+    error_ = EXTRA;
+    return false;
+  }
+
+  return true;
+}
+
+
 /// Read a single character.
 ///
 /// Doesn't skip spaces.
@@ -108,7 +123,7 @@ char CommandParser::get_char()
 }
 
 
-const char *CommandParser::get_blob()
+const char *CommandParser::get_word()
 {
   const bool fault = prepare(true);
   if (fault) {
