@@ -103,6 +103,9 @@ public:
 protected:
   void set_device_pins(uint8_t good_led, uint8_t bad_led, uint8_t sd_card);
   void set_beeper_pin(uint8_t pin);
+
+  /// The button is used to signal that the SD card is being removed or replaced.
+  void set_button_pin(uint8_t pin);
   void set_usb_baud_rate(uint32_t rate);
 
 public:

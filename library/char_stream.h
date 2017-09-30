@@ -4,8 +4,8 @@ class CharStream: public Print
 {
 private:
   char *buffer_;
-  uint8_t size_;
-  uint8_t pos_;
+  size_t size_;
+  size_t pos_;
 
 public:
   CharStream(char *buffer, uint8_t size);

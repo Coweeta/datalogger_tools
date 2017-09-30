@@ -25,11 +25,12 @@ enum {
 MayflyDataLogger::MayflyDataLogger()
 {
   set_device_pins(GREEN_LED_PIN, RED_LED_PIN, SD_CARD_SS_PIN);
+  set_button_pin(24);
   set_usb_baud_rate(250000);
 }
 
 
-static void wakeISR(void)
+static void rtc_isr(void)
 {
   //Leave this blank
 }
@@ -39,7 +40,7 @@ void MayflyDataLogger::setup(void)
 {
   pinMode(RTC_PIN, INPUT_PULLUP);
 
-  PcInt::attachInterrupt(RTC_PIN, wakeISR);
+  PcInt::attachInterrupt(RTC_PIN, rtc_isr);
 
   //Setup the RTC in interrupt mode
   rtc.enableInterrupts(EverySecond);

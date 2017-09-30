@@ -19,14 +19,14 @@
 #include <Sodaq_PcInt.h>
 
 
-extern SdFat SD;
+extern SdFat sd_card_;
 
 namespace junk {
 
 
 
 void print_root_directory() {
-  File dir = SD.open("/");
+  File dir = sd_card_.open("/");
   dir.rewindDirectory();
   while (true) {
 
@@ -75,7 +75,7 @@ int get_next_file_number(void) {
   for (uint8_t i = 0; i < 100; i++) {
     filename[6] = i / 10 + '0';
     filename[7] = i % 10 + '0';
-    if (!SD.exists(filename)) {
+    if (!sd_card_.exists(filename)) {
       return i;
     }
 
@@ -94,7 +94,7 @@ File set_log_file(int file_num, int mode) {
   char filename[] = "LOGGER00.CSV";
   filename[6] = file_number / 10 + '0';
   filename[7] = file_number % 10 + '0';
-  File log_file = SD.open(filename, mode);
+  File log_file = sd_card_.open(filename, mode);
   if (!log_file) {
     die("Couldn't create file.");
   }

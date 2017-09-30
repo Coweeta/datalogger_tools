@@ -1,11 +1,12 @@
 #include "Arduino.h"
+#include <Sodaq_PcInt.h>
 
 #include "data_logger.h"
 #include "char_stream.h"
 #include "command_parser.h"
 #include "junk.h"
 
-SdFat SD;  // The SD initialization
+SdFat sd_card_;  // The SD initialization
 
 namespace coweeta {
 
@@ -26,6 +27,8 @@ static uint16_t _event_enabled = 0xFFFF;
 static uint8_t good_led_pin_ = 0;
 static uint8_t bad_led_pin_ = 0;
 static uint8_t beeper_pin_ = 0;
+static uint8_t button_pin_ = 0;
+
 static uint8_t logger_cs_pin_ = 0;
 static uint32_t usb_usart_baud_rate_ = 0;
 
@@ -36,6 +39,7 @@ static const int BUF_SIZE = 250;
 char char_buf[BUF_SIZE];
 CharStream char_stream(char_buf, BUF_SIZE);
 
+static uint8_t sd_card_state_;
 
 static DataLogger *_logger;
 
@@ -69,7 +73,7 @@ static uint32_t compute_next_time()
 
 static void send_file(const char *filename)
 {
-  _download_file = SD.open(filename, FILE_READ);
+  _download_file = sd_card_.open(filename, FILE_READ);
   if (!_download_file) {
     Serial.print(filename);
     junk::die("Can't open file");
@@ -153,7 +157,7 @@ static void file_delete(CommandParser &parser)
     report_error(parser);
     return;
   }
-  SD.remove(filename);
+  sd_card_.remove(filename);
   Serial.println("R");
 }
 
@@ -299,6 +303,9 @@ DataLogger::DataLogger()
    _logger = this;
 }
 
+static void button_press_irc(void)
+{
+}
 
 void DataLogger::setup()
 {
@@ -308,8 +315,12 @@ void DataLogger::setup()
   if (beeper_pin_) {
     pinMode(beeper_pin_, OUTPUT);
   }
+  if (button_pin_) {
+    pinMode(button_pin_, INPUT);
+    PcInt::attachInterrupt(button_pin_, button_press_irc);
+  }
 
-  Serial.begin(usb_usart_baud_rate_);  //TODO make adjustable
+  Serial.begin(usb_usart_baud_rate_);
   Serial.println("# Coweeta Hydrologic Lab Datalogger");
 
   // connect to RTC
@@ -319,7 +330,7 @@ void DataLogger::setup()
     junk::die("RTC failed");
   }
 
-  if (!SD.begin(logger_cs_pin_)) {
+  if (!sd_card_.begin(logger_cs_pin_)) {
     junk::die("Data logger card failed, or not present.");
   }
 
@@ -435,6 +446,9 @@ void DataLogger::skip_entries(uint8_t count)
 
 void DataLogger::end_log_line(void)
 {
+  // check if we have a log file
+  // check if we have an sd card
+
   if (char_stream.bytes_written()) {
 
     if (log_to_file_) {
@@ -483,6 +497,12 @@ void DataLogger::set_device_pins(uint8_t good_led, uint8_t bad_led, uint8_t sd_c
 void DataLogger::set_beeper_pin(uint8_t pin)
 {
   beeper_pin_ = pin;
+}
+
+
+void DataLogger::set_button_pin(uint8_t pin)
+{
+  button_pin_ = pin;
 }
 
 
