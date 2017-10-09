@@ -43,6 +43,8 @@ static uint8_t sd_card_state_;
 
 static DataLogger *_logger;
 
+
+
 static uint32_t next_time_for_event(const EventSchedule* schedule)
 {
   const int16_t interval = schedule->interval;
@@ -217,7 +219,7 @@ static void process_commands(void)
         }
         log_file.close();
         log_file = junk::set_log_file(file_num, FILE_WRITE);
-        log_file.println("# Coweeta log file");
+        log_file.println("# Coweeta log file");    //TEMP!!!
         log_file.flush();
 
         Serial.println('N');
@@ -280,7 +282,7 @@ static void process_commands(void)
 
   case 'L':
     // list_files()
-    junk::print_root_directory();
+    junk::print_root_directory(sd_card_);
     return;
 
   case 'w':
@@ -321,7 +323,7 @@ void DataLogger::setup()
   }
 
   Serial.begin(usb_usart_baud_rate_);
-  Serial.println("# Coweeta Hydrologic Lab Datalogger");
+  Serial.print("# Coweeta Hydrologic Lab Datalogger\n");
 
   // connect to RTC
   Wire.begin();
@@ -453,13 +455,13 @@ void DataLogger::end_log_line(void)
 
     if (log_to_file_) {
       char_stream.dump(log_file);
-      log_file.println("");
+      log_file.print("\n");
       log_file.flush();
     }
     if (log_to_term_) {
       Serial.print("!");
       char_stream.dump(Serial);
-      Serial.println("");
+      Serial.print("\n");
     }
 
   }
