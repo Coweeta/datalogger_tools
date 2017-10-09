@@ -31,7 +31,7 @@ void FileTransfer::transfer_line()
   {
     if (!file_.available()) {
       // file ends with non-NL
-      Serial.print("\\MN\n");
+      Serial.print("\\XX\n");
       finished_ = true;
       return;
     }
@@ -41,7 +41,7 @@ void FileTransfer::transfer_line()
       Serial.print('\n');
       if (!file_.available()) {
         finished_ = true;
-      Serial.print(" \\TF\n");
+        Serial.print(" \\XN\n");
       }
       return;
     } else if ((ch < ' ') || (ch > '~') || (ch == '\\')) {

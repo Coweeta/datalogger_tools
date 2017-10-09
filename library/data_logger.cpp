@@ -5,6 +5,7 @@
 #include "char_stream.h"
 #include "command_parser.h"
 #include "junk.h"
+#include "file_transfer.h"
 
 SdFat sd_card_;  // The SD initialization
 
@@ -82,11 +83,11 @@ static void send_file(const char *filename)
     return;
   }
 
-  Serial.println(_download_file.size());
+  Serial.print(_download_file.size());
   while(true) {
     if (Serial.available()) {
       Serial.read();
-      Serial.println("XXX");     //TEMP!!!
+      Serial.print("XXX\n");     //TEMP!!!
       break;
     }
     if (not _download_file.available()) {
@@ -102,7 +103,8 @@ static void send_file(const char *filename)
 static void report_error(const CommandParser &parser)
 {
   Serial.print("Xp");
-  Serial.println(parser.error());
+  Serial.print(parser.error());
+  Serial.print('\n');
 }
 
 
@@ -147,7 +149,10 @@ static void file_transfer(CommandParser &parser)
     report_error(parser);
     return;
   }
-  send_file(filename);
+  FileTransfer ft = FileTransfer(sd_card_, filename);
+  while (! ft.finished()) {
+    ft.transfer_line();
+  }
 }
 
 
@@ -160,7 +165,7 @@ static void file_delete(CommandParser &parser)
     return;
   }
   sd_card_.remove(filename);
-  Serial.println("R");
+  Serial.print("R\n");
 }
 
 
@@ -200,7 +205,7 @@ static void process_commands(void)
           return;
         }
         log_to_term_ = mode == 1;
-        Serial.println("o");
+        Serial.print("o\n");
       }
       return;
 
@@ -219,10 +224,10 @@ static void process_commands(void)
         }
         log_file.close();
         log_file = junk::set_log_file(file_num, FILE_WRITE);
-        log_file.println("# Coweeta log file");    //TEMP!!!
+        log_file.print("# Coweeta log file\n");    //TEMP!!!
         log_file.flush();
 
-        Serial.println('N');
+        Serial.print("N\n");
       }
       return;
 
@@ -237,7 +242,7 @@ static void process_commands(void)
         }
         _logger->set_unix_time(seconds);
         compute_next_time();
-        Serial.println('s');
+        Serial.print("s\n");
       }
       return;
 
@@ -255,13 +260,15 @@ static void process_commands(void)
   switch(command) {
   case 'v':
     // protocol version
-    Serial.println("v COW0.0");
+    Serial.print("v COW0.0\n");
     return;
 
   case 'A':
     // get_active_file_num()
     Serial.print("A");
-    Serial.println(file_number, DEC);
+    Serial.print(file_number, DEC);
+    Serial.print('\n');
+
     break;
 
   case 'n':
@@ -277,7 +284,9 @@ static void process_commands(void)
   case 't':
     // get time for sync_time()
     Serial.print("t");
-    Serial.println(_now, DEC);
+    Serial.print(_now, DEC);
+    Serial.print('\n');
+
     return;
 
   case 'L':
@@ -287,13 +296,17 @@ static void process_commands(void)
 
   case 'w':
     // report wait for next event
-    Serial.println(_next_time - _now);
-    Serial.println(_triggered_events);
-    Serial.println(_event_enabled);
+    Serial.print('w');
+    Serial.print(_next_time - _now);
+    Serial.print(' ');
+    Serial.print(_triggered_events);
+    Serial.print(' ');
+    Serial.print(_event_enabled);
+    Serial.print('\n');
     return;
 
   default:
-    Serial.println("Ec?");
+    Serial.print("Ec?\n");
     return;
 
   }
