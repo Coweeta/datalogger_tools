@@ -12,7 +12,7 @@
 namespace coweeta
 {
 
-// Define assorted I/O pins.
+// Define assorted I/O pins for the Mayfly board.
 enum {
   GREEN_LED_PIN = 8,
   RED_LED_PIN = 9,
@@ -26,10 +26,14 @@ MayflyDataLogger::MayflyDataLogger()
 {
   set_device_pins(GREEN_LED_PIN, RED_LED_PIN, SD_CARD_SS_PIN);
   set_button_pin(24);
+  // Given the clock is 8MHz we can run the USB USART at 250kBaud with zero
+  // rate error.  See ATmega1284 Datasheet Section 21.11. Examples of Baud Rate Setting
+  // http://www.microchip.com/wwwproducts/en/ATMEGA1284
   set_usb_baud_rate(250000);
 }
 
 
+/// Triggered every second by the DS3231 real-time clock module.
 static void rtc_isr(void)
 {
   //Leave this blank
@@ -38,6 +42,7 @@ static void rtc_isr(void)
 
 void MayflyDataLogger::setup(void)
 {
+
   pinMode(RTC_PIN, INPUT_PULLUP);
 
   PcInt::attachInterrupt(RTC_PIN, rtc_isr);
