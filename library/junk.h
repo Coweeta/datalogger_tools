@@ -16,7 +16,7 @@
 namespace junk {
 
 
-void print_root_directory();
+void print_root_directory(const SdFat &sd_card);
 void die(const char* error_str);
 
 void new_log_row(const DateTime &now);

@@ -25,8 +25,8 @@ namespace junk {
 
 
 
-void print_root_directory() {
-  File dir = sd_card_.open("/");
+void print_root_directory(const SdFat &sd_card) {
+  File dir = sd_card.open("/");
   dir.rewindDirectory();
   while (true) {
 
@@ -38,17 +38,20 @@ void print_root_directory() {
     const int BUF_LEN = 13;
     char buf[BUF_LEN];
     const bool okay = entry.getName(buf, BUF_LEN);
+    Serial.print("L ");
     Serial.print(buf);
     if (entry.isDirectory()) {
-      Serial.println("/");
+      Serial.print("/\n");
     } else {
       // files have sizes, directories do not
       Serial.print("\t");
-      Serial.println(entry.size(), DEC);
+      Serial.print(entry.size(), DEC);
+      Serial.print("\n");
     }
     entry.close();
   }
   dir.close();
+  Serial.print("L\n");
 }
 
 
