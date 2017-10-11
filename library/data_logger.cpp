@@ -55,8 +55,12 @@ static uint32_t next_time_for_event(const EventSchedule* schedule)
 }
 
 
-static uint32_t compute_next_time()
+static void compute_next_time()
 {
+  if (_forced_events) {
+      return;
+  }
+
   _next_time = 0xFFFFFFFF;
   _triggered_events = 0x0000;
   uint16_t mask = 0x0001;
@@ -126,7 +130,6 @@ static bool set_event_bits(CommandParser &parser, uint16_t &event_bits)
 static void manual_event_trigger(CommandParser &parser)
 {
   if (set_event_bits(parser, _forced_events)) {
-    compute_next_time();
     Serial.print("e\n");
   }
 }
@@ -135,8 +138,8 @@ static void manual_event_trigger(CommandParser &parser)
 static void event_enabling(CommandParser &parser)
 {
   if (set_event_bits(parser, _event_enabled)) {
-    compute_next_time();
-    Serial.print("E\n");
+     Serial.print("#E "); Serial.print(_event_enabled); Serial.print(" "); Serial.print(_forced_events); Serial.print("\n");
+     Serial.print("E\n");
   }
 }
 
@@ -149,6 +152,7 @@ static void file_transfer(CommandParser &parser)
     report_error(parser);
     return;
   }
+  Serial.print("G\n");
   FileTransfer ft = FileTransfer(sd_card_, filename);
   while (! ft.finished()) {
     ft.transfer_line();
@@ -241,7 +245,6 @@ static void process_commands(void)
           return;
         }
         _logger->set_unix_time(seconds);
-        compute_next_time();
         Serial.print("s\n");
       }
       return;
@@ -403,11 +406,14 @@ void DataLogger::wait_for_event(void)
   while ((_now < _next_time) && !_forced_events) {
     if (Serial.available()) {
       process_commands();
+      compute_next_time();
+      Serial.print("#L "); Serial.print(_event_enabled); Serial.print(" "); Serial.print(_forced_events); Serial.print("\n");
     } else {
       wait_a_while();
     }
     _now = _logger->get_unix_time();
   }
+  Serial.print("#E "); Serial.print(_event_enabled); Serial.print(" "); Serial.print(_forced_events); Serial.print("\n");
   if (_forced_events) {
     _triggered_events = _forced_events;
     _forced_events = 0x0000;

@@ -1,6 +1,8 @@
 import time
 import serial
 
+import incoming_comms
+
 class DataLoggerFault(Exception):
     pass
 
@@ -15,13 +17,18 @@ class DataLoggerInterface:
 
         deviceName would be something like "/dev/ttyUSB0"
         """
-        self.ser = serial.Serial(device_name, 250000, xonxoff=1, rtscts=0, timeout=0.2)
+        self.ser = serial.Serial(device_name, 250000, xonxoff=1, rtscts=0, timeout=0.1)
+        self.incoming = incoming_comms.IncomingComms(self.ser)
         self.debug = debug
         self._download_file = None
         self._download_filename = None
         self._file_bytes_left = 0
+        time.sleep(2)
         self.check_protocol_version()
-        self._event_names = self._write_and_read("n")
+        self._event_names = self._write_and_read("n").split()
+
+        # turn on dumping
+        self._write_and_read("o1")
 
 
     def __del__(self):
@@ -36,20 +43,11 @@ class DataLoggerInterface:
             print("flush got '{}'".format(out))
 
 
-    def _write_and_read(self, text):
+    def _write_and_read(self, text, multiline=False):
         """private method to send command and handle output"""
-        self._flush()
-        self.ser.write(bytes(text, 'utf-8'))
-        lines = []
-        while True:
-            out = self.ser.readlines()
-            if self.debug:
-                print("'{0}' gave '{1}'".format(text, out))
-            for byte_line in out:
-                line = str(byte_line, 'utf-8').strip()
-                if line == ">":
-                    return lines
-                lines.append(line)
+        #TEMP!!! self._flush()
+        self.ser.write(bytes(text + '\n', 'utf-8'))
+        return self.incoming.read_stuff(text[0], multiline)
 
 
     def get_event_names(self, trigger_mask=None):
@@ -64,24 +62,24 @@ class DataLoggerInterface:
 
 
     def check_protocol_version(self):
-        version_response = self._write_and_read("v")
-        if len(version_response) != 1:
-            raise DataLoggerFault("Device may not be a Coweeta data logger", version_response)
-        version_string = str(version_response[0])
+        version_string = self._write_and_read("v").strip()
+        #if len(version_response) != 1:
+        #    raise DataLoggerFault("Device may not be a Coweeta data logger", version_response)
+        #version_string = str(version_response[0])
         if version_string[:3] != "COW":
             raise DataLoggerFault("Device may not be a Coweeta data logger", version_string)
         if version_string[3:] != "0.0":
             raise DataLoggerFault("Device uses newer protocol than this application supports", version_string)
 
 
-    def wait_for_prompt(self):
-        for attempt in range(50):
-          got = self.ser.read()
-          if got is not None:
-              if got != ">":
-                  raise Exception("didn't get prompt", got)
-              return True
-        return False
+    # def wait_for_prompt(self):
+    #     for attempt in range(50):
+    #       got = self.ser.read()
+    #       if got is not None:
+    #           if got != ">":
+    #               raise Exception("didn't get prompt", got)
+    #           return True
+    #     return False
 
 
     def start_download_file(self, filename):
@@ -122,10 +120,8 @@ class DataLoggerInterface:
 
 
     def get_time_delta(self):
-        lines = self._write_and_read("t")
-        if len(lines) != 1:
-            raise Exception("bad num lines", lines)
-        their_time = int(lines[0])
+        line = self._write_and_read("t")
+        their_time = int(line)
         our_time = time.time()
         delta = their_time - our_time
         print("TDTDTD", delta)
@@ -133,10 +129,8 @@ class DataLoggerInterface:
 
 
     def sync_time(self):
-        lines = self._write_and_read("t")
-        if len(lines) != 1:
-            raise Exception("bad num lines", lines)
-        their_time = int(lines[0])
+        line = self._write_and_read("t")
+        their_time = int(line)
         our_time = time.time()
         delta = their_time - our_time
         if abs(delta) > 2:
@@ -151,14 +145,12 @@ class DataLoggerInterface:
 
 
     def get_active_file_num(self):
-        lines = self._write_and_read("A")
-        if len(lines) != 1:
-            raise Exception("bad num lines", lines)
-        return int(lines[0])
+        line = self._write_and_read("A")
+        return int(line)
 
 
     def list_files(self):
-        lines = self._write_and_read("L")
+        lines = self._write_and_read("L", multiline=True)
         file_list = []
         for line in lines:
             if "\t" in line:
@@ -176,16 +168,17 @@ class DataLoggerInterface:
             index = self._event_names.index(event_name)
             event_mask += 1 << index
         result = self._write_and_read("e{}".format(event_mask))
-        if len(result) > 1:
-            raise DataLoggerFault('bad log length', result)
-        if len(result) == 0:
-            return ''
-        else:
-            return result[0]
+        # if len(result) > 1:
+        #     raise DataLoggerFault('bad log length', result)
+        # if len(result) == 0:
+        #     return ''
+        # else:
+        #     return result[0]
+
 
 
     def get_next_event(self):
-        delay_str, event_str, enabled_str  = self._write_and_read("w")
+        delay_str, event_str, enabled_str  = self._write_and_read("w").split()
         delay = int(delay_str)
         event_mask = int(event_str)
         next_event_names = []

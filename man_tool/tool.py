@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import logging
 import datetime
 import tkinter as tk
 import tkinter.ttk as ttk
@@ -158,6 +159,7 @@ class GuiLoggerInterface(tk.Frame):
         self._file_widgets = []
         self._check_vars = {}
 
+        self.populate_file_list([('EMPTY', None), ('bob', 5), ('sid.txt', 5000)], None)
 
 
 
@@ -258,9 +260,14 @@ class GuiLoggerInterface(tk.Frame):
             if state.get():
                 event_list.append(name)
         print(event_list)
-        result = self._callbacks['trigger_event'](event_list)
-        print(result)
-        self._log_text.insert(tk.END, result + "\n")
+        self._callbacks['trigger_event'](event_list)
+        #TEMP!!! print(result)
+        #TEMP!!! self._log_text.insert(tk.END, result + "\n")
+
+    def dump_log(self, log_list):
+        logging.debug("LL: " + "*".join(log_list))
+        for item in log_list:
+            self._log_text.insert(tk.END, item + "\n")
 
     def _make_menus(self):
         menu_bar = tk.Menu(self)
@@ -394,9 +401,12 @@ if __name__ == "__main__":
             if self.control is not None and not self._downloading:
                 delay, event_names = self.control.get_next_event()
                 window.update_log_time(delay, event_names)
+                log = self.control.incoming.get_log_dump()
+                if log:
+                    window.dump_log(log)
 
         def log_now(self, event_names):
-            return self.control.trigger_events(event_names)
+            self.control.trigger_events(event_names)
 
     bob = Bob()  #TEMP!!! rename
 
