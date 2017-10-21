@@ -4,10 +4,9 @@
 #include "data_logger.h"
 #include "char_stream.h"
 #include "command_parser.h"
-#include "junk.h"
 #include "file_transfer.h"
+#include "utils.h"
 
-SdFat sd_card_;  // The SD initialization
 
 namespace coweeta {
 
@@ -43,7 +42,20 @@ CharStream char_stream(char_buf, BUF_SIZE);
 static uint8_t sd_card_state_;
 
 static DataLogger *_logger;
+SdFat sd_card_;  // The SD initialization
 
+
+static void die(const char* error_str) {
+  Serial.print("# ERROR: ");
+  Serial.println(error_str);
+  while(1) {
+      digitalWrite(bad_led_pin_, HIGH);
+      delay(500);
+      digitalWrite(bad_led_pin_, LOW);
+      delay(500);
+  }
+
+}
 
 
 static uint32_t next_time_for_event(const EventSchedule* schedule)
@@ -83,7 +95,7 @@ static void send_file(const char *filename)
   _download_file = sd_card_.open(filename, FILE_READ);
   if (!_download_file) {
     Serial.print(filename);
-    junk::die("Can't open file");
+    ("Can't open file");
     return;
   }
 
@@ -109,6 +121,28 @@ static void report_error(const CommandParser &parser)
   Serial.print("Xp");
   Serial.print(parser.error());
   Serial.print('\n');
+}
+
+
+uint16_t get_next_file_number(void) {
+  for (uint16_t file_num = 0; file_num < 1000; file_num++) {
+    const char *filename = build_filename(file_num);
+    if (!sd_card_.exists(filename)) {
+      return file_num;
+    }
+  }
+  die("Ran out of filenames.");
+}
+
+
+File open_log_file(uint16_t file_num, int mode)
+{
+  const char *filename = build_filename(file_num);
+  File log_file = sd_card_.open(filename, mode);
+  if (!log_file) {
+    die("Couldn't create file.");
+  }
+  return log_file;
 }
 
 
@@ -226,7 +260,7 @@ static void process_commands(void)
           return;
         }
         log_file.close();
-        log_file = junk::set_log_file(file_num, FILE_WRITE);
+        log_file = open_log_file(file_num, FILE_WRITE);
         log_file.print("# Coweeta log file\n");    //TEMP!!!
         log_file.flush();
 
@@ -293,7 +327,7 @@ static void process_commands(void)
 
   case 'L':
     // list_files()
-    junk::print_root_directory(sd_card_);
+    print_root_directory(sd_card_);
     return;
 
   case 'w':
@@ -340,20 +374,13 @@ void DataLogger::setup()
   Serial.begin(usb_usart_baud_rate_);
   Serial.print("# Coweeta Hydrologic Lab Datalogger\n");
 
-  // connect to RTC
-  Wire.begin();
-
-  if (!rtc.begin()) {
-    junk::die("RTC failed");
-  }
-
   if (!sd_card_.begin(logger_cs_pin_)) {
-    junk::die("Data logger card failed, or not present.");
+    die("Data logger card failed, or not present.");
   }
 
-  file_number = junk::get_next_file_number();
+  file_number = get_next_file_number();
 
-  log_file = junk::set_log_file(file_number, FILE_WRITE);
+  log_file = open_log_file(file_number, FILE_WRITE);
   log_file.println("# Coweeta log file");   //TODO make variable and delay file write.
   log_file.flush();
 
