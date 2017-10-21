@@ -138,7 +138,6 @@ static void manual_event_trigger(CommandParser &parser)
 static void event_enabling(CommandParser &parser)
 {
   if (set_event_bits(parser, _event_enabled)) {
-     Serial.print("#E "); Serial.print(_event_enabled); Serial.print(" "); Serial.print(_forced_events); Serial.print("\n");
      Serial.print("E\n");
   }
 }
@@ -407,13 +406,11 @@ void DataLogger::wait_for_event(void)
     if (Serial.available()) {
       process_commands();
       compute_next_time();
-      Serial.print("#L "); Serial.print(_event_enabled); Serial.print(" "); Serial.print(_forced_events); Serial.print("\n");
     } else {
       wait_a_while();
     }
     _now = _logger->get_unix_time();
   }
-  Serial.print("#E "); Serial.print(_event_enabled); Serial.print(" "); Serial.print(_forced_events); Serial.print("\n");
   if (_forced_events) {
     _triggered_events = _forced_events;
     _forced_events = 0x0000;
