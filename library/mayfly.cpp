@@ -52,6 +52,14 @@ void MayflyDataLogger::setup(void)
 
   set_sleep_mode(SLEEP_MODE_IDLE);
 
+  // connect to RTC
+  Wire.begin();
+
+  if (!rtc.begin()) {
+    //TODO work out dying die("RTC failed");
+  }
+
+
   DataLogger::setup();
 
 }
