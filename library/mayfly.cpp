@@ -1,9 +1,18 @@
+/// DataLogger class implementation for the Mayfly board.
+///
+/// https://envirodiy.org/mayfly/
+///
+///
+///
+
 #include "mayfly.h"
 
 #include <avr/sleep.h>
 #include <RTCTimer.h>
+#include <Wire.h>
 #include <Sodaq_DS3231.h>
 #include <Sodaq_PcInt.h>
+
 /// USB comms needs the D21 (PCINT21) button to be pressed to wake up the micro.
 /// Following this being pressed - or any USB traffic - the controller avoids
 /// power-down for a minute.
@@ -17,6 +26,7 @@ enum {
   GREEN_LED_PIN = 8,
   RED_LED_PIN = 9,
   SD_CARD_SS_PIN = 12,
+  BUTTON_PIN = 24,
   RTC_PIN = A7,
   BATTERY_SENSE_PIN = A6
 };
@@ -25,9 +35,10 @@ enum {
 MayflyDataLogger::MayflyDataLogger()
 {
   set_device_pins(GREEN_LED_PIN, RED_LED_PIN, SD_CARD_SS_PIN);
-  set_button_pin(24);
+  set_button_pin(BUTTON_PIN);
   // Given the clock is 8MHz we can run the USB USART at 250kBaud with zero
-  // rate error.  See ATmega1284 Datasheet Section 21.11. Examples of Baud Rate Setting
+  // rate error.  See ATmega1284 Datasheet Section 21.11. Examples of Baud Rate
+  // Setting
   // http://www.microchip.com/wwwproducts/en/ATMEGA1284
   set_usb_baud_rate(250000);
 }

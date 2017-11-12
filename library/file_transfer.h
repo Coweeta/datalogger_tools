@@ -14,6 +14,12 @@ private:
 public:
   FileTransfer(SdFat &sd_card, const char *filename);
   ~FileTransfer();
+  
+  inline size_t file_size()
+  {
+    return file_.size();
+  }
+
   inline bool finished()
   {
     return finished_;

@@ -185,8 +185,10 @@ static void file_transfer(CommandParser &parser)
     report_error(parser);
     return;
   }
-  Serial.print("G\n");
   FileTransfer ft = FileTransfer(sd_card_, filename);
+  Serial.print("G");
+  Serial.print(ft.file_size());
+  Serial.print("\n");
   while (! ft.finished()) {
     ft.transfer_line();
   }
@@ -381,7 +383,7 @@ void DataLogger::setup()
   file_number = get_next_file_number();
 
   log_file = open_log_file(file_number, FILE_WRITE);
-  log_file.println("# Coweeta log file");   //TODO make variable and delay file write.
+  log_file.print("# Coweeta log file\n");   //TODO make variable and delay file write.
   log_file.flush();
 
   log_to_file_ = true;
