@@ -30,6 +30,15 @@ typedef struct {
 } EventSchedule;
 
 
+// Used by DataLogger::set_date_and_time() to update the real-time clock (RTC)
+// from the management software.
+typedef struct {
+  uint16_t year; // The current year (common era (CE)), e.g. 2017
+  uint8_t month; // The ordinal month of the year (1 to 12)
+  uint8_t day; // The day of the month (1 to 31)
+} date_t;
+
+
 // Each application will have a single DataLogger object.  This object handles
 // all fiddly file handling, interfacing to the management software and so on.
 // It is up to the program developer to ensure that only one instance exists and
@@ -109,9 +118,34 @@ protected:
   void set_usb_baud_rate(uint32_t rate);
 
 public:
+  // Each of these methods is implemented in the board specific child class.
+
+  // Called from within the main loop() function, will wait until the next event
+  // is due, or there has been some input on the USB port (i.e. from the
+  // management software).  This can put the micro into sleep mode to save
+  // power.
   virtual void wait_a_while(void) = 0;
+
+  // Returns the number of seconds since epoch.
+  //TODO: deprecate.
   virtual uint32_t get_unix_time(void) = 0;
+
+  // Sets the number of seconds since epoch.
+  //TODO: deprecate.
   virtual void set_unix_time(uint32_t seconds) = 0;
+
+  // Returns the time of day.  Used to determine if an event is due.
+  // Let's use UTC time (Greenwich or Zulu time) to avoid daylight savings
+  // grief.
+   //TEMP!!! virtual uint32_t get_seconds_since_midnight(void) = 0;
+
+  // Used to set the RTC from the management software.  The seconds field is the
+  // number of seconds since midnight.
+   //TEMP!!! virtual void set_date_and_time(uint32_t seconds, const date_t &date) = 0;
+
+  // Called each time a line is written to the log file.  Must output a text
+  // representation of the date and time to the stream.  An example of the
+  // output is "2017-07-24 20:36:35".
   virtual void write_timestamp(Print &stream) = 0;
 
 };
